@@ -1,0 +1,15 @@
+# 🔹 Python cache / compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 🔹 Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# 🔹 Environment variables
+.env
+.env.*
+*.env
