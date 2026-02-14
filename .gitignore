@@ -13,3 +13,6 @@ ENV/
 .env
 .env.*
 *.env
+
+verify_app.py
+verify_imports.py
