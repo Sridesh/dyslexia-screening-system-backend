@@ -116,11 +116,14 @@ MODULE_WEIGHTS: Dict[str, float] = {
 #     "object_recognition": 0.20,
 # }
 
-# Risk thresholds on some abstract risk score (to be defined in risk.py)
-# RISK_SCORE_HIGH: float = 0.7
-# RISK_SCORE_MODERATE: float = 0.4
-RISK_SCORE_HIGH: float = 0.65
-RISK_SCORE_MODERATE: float = 0.45
+# Risk thresholds on some abstract# Tuned values from systematic_tuning.py (J=0.660)
+MIN_ITEMS_PER_MODULE: int = 3
+MAX_ITEMS_TOTAL: int = 20
+P_CONFIDENT: float = 0.75
+ENTROPY_THRESHOLD: float = 0.70
+MIN_INFO_GAIN: float = 0.01
+RISK_SCORE_HIGH: float = 0.55
+RISK_SCORE_MODERATE: float = 0.40
 
 
 # -------------------------------------------------
