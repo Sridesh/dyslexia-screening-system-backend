@@ -8,6 +8,7 @@ from app import crud, schemas, models
 from app.deps import deps
 from app.adaptive_testing_module import orchestration_engine, selection, config
 from app.services import test_service, items as items_service, results as results_service
+from app.adaptive_testing_module.rt_fatigue import compute_fatigue_factor
 
 router = APIRouter()
 
@@ -157,7 +158,9 @@ def submit_response_endpoint(
         test.end_time = datetime.utcnow()
         test.total_time_s = session.total_time_seconds
         test.total_items = sum(getattr(m, 'num_items', 0) for m in session.modules.values())
-        test.final_fatigue_level = config.MIN_FATIGUE_FACTOR
+        # test.final_fatigue_level = config.MIN_FATIGUE_FACTOR
+        test.final_fatigue_level = compute_fatigue_factor(session.total_time_seconds)
+
         
         # Save Results via Service
         results_service.save_test_results(db, test, result.global_risk, session.modules)

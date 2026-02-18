@@ -45,19 +45,12 @@ def save_test_results(
     db: Session,
     test: Test,
     global_risk: GlobalRiskResult,
-    session_modules: dict # passing session.modules
+    session_modules: dict  # session.modules
 ) -> None:
-    """
-    Persist module summaries and risk summaries.
-    Combines logic for TestModuleSum, TestFeatures, TestXAI.
-    """
     # 1. Module Summaries
     db.query(TestModuleSum).filter(TestModuleSum.test_id == test.id).delete()
-    
     for module_id, mod_stats in session_modules.items():
-        # Get risk classification if avail
         mc = global_risk.modules.get(module_id)
-        
         summary = TestModuleSum(
             test_id=test.id,
             module=module_id,
@@ -75,22 +68,17 @@ def save_test_results(
         db.add(summary)
 
     # 2. Risk Summary (Features + XAI)
-    # Clear existing
     db.query(TestFeatures).filter(TestFeatures.test_id == test.id).delete()
     db.query(TestXAI).filter(TestXAI.test_id == test.id).delete()
 
-    # Features
     feat_data = {
         "test_id": test.id,
         "p_risk_atrisk": global_risk.risk_score,
-        "risk_entropy": 1.0 - global_risk.confidence, # approx
+        "risk_entropy": 1.0 - global_risk.confidence,
         "total_items": sum(m.num_items for m in session_modules.values()),
-        # total_time_s is in test model usually, but can be here too
         "created_at": datetime.utcnow()
     }
-    
-    # Map specific modules if they exist (hardcoded mapping for features schema)
-    # RAN
+
     if "ran" in session_modules:
         m = session_modules["ran"]
         feat_data.update({
@@ -100,8 +88,7 @@ def save_test_results(
             "avg_time_RAN": m.sum_rt / m.num_items if m.num_items > 0 else 0,
             "slow_corr_ratio_RAN": m.slow_correct / m.correct if m.correct > 0 else 0,
         })
-    
-    # Phonology
+
     if "phonemic_awareness" in session_modules:
         m = session_modules["phonemic_awareness"]
         feat_data.update({
@@ -115,7 +102,6 @@ def save_test_results(
     features = TestFeatures(**feat_data)
     db.add(features)
 
-    # XAI
     xai = TestXAI(
         test_id=test.id,
         method="adaptive_risk_profile",
@@ -123,3 +109,87 @@ def save_test_results(
         created_at=datetime.utcnow()
     )
     db.add(xai)
+
+
+# def save_test_results(
+#     db: Session,
+#     test: Test,
+#     global_risk: GlobalRiskResult,
+#     session_modules: dict # passing session.modules
+# ) -> None:
+#     """
+#     Persist module summaries and risk summaries.
+#     Combines logic for TestModuleSum, TestFeatures, TestXAI.
+#     """
+#     # 1. Module Summaries
+#     db.query(TestModuleSum).filter(TestModuleSum.test_id == test.id).delete()
+    
+#     for module_id, mod_stats in session_modules.items():
+#         # Get risk classification if avail
+#         mc = global_risk.modules.get(module_id)
+        
+#         summary = TestModuleSum(
+#             test_id=test.id,
+#             module=module_id,
+#             risk_label=mc.label if mc else None,
+#             p_weak_final=mod_stats.p_weak,
+#             p_strong_final=mod_stats.p_strong,
+#             entropy_final=mod_stats.entropy,
+#             num_items=mod_stats.num_items,
+#             avg_time_s=mod_stats.sum_rt / mod_stats.num_items if mod_stats.num_items > 0 else 0.0,
+#             total_correct_count=mod_stats.correct,
+#             slow_correct_count=mod_stats.slow_correct,
+#             slow_correct_ratio=mod_stats.slow_correct / mod_stats.correct if mod_stats.correct > 0 else 0.0,
+#             created_at=datetime.utcnow()
+#         )
+#         db.add(summary)
+
+#     # 2. Risk Summary (Features + XAI)
+#     # Clear existing
+#     db.query(TestFeatures).filter(TestFeatures.test_id == test.id).delete()
+#     db.query(TestXAI).filter(TestXAI.test_id == test.id).delete()
+
+#     # Features
+#     feat_data = {
+#         "test_id": test.id,
+#         "p_risk_atrisk": global_risk.risk_score,
+#         "risk_entropy": 1.0 - global_risk.confidence, # approx
+#         "total_items": sum(m.num_items for m in session_modules.values()),
+#         # total_time_s is in test model usually, but can be here too
+#         "created_at": datetime.utcnow()
+#     }
+    
+#     # Map specific modules if they exist (hardcoded mapping for features schema)
+#     # RAN
+#     if "ran" in session_modules:
+#         m = session_modules["ran"]
+#         feat_data.update({
+#             "p_weak_RAN": m.p_weak,
+#             "entropy_RAN": m.entropy,
+#             "num_items_RAN": m.num_items,
+#             "avg_time_RAN": m.sum_rt / m.num_items if m.num_items > 0 else 0,
+#             "slow_corr_ratio_RAN": m.slow_correct / m.correct if m.correct > 0 else 0,
+#         })
+    
+#     # Phonology
+#     if "phonemic_awareness" in session_modules:
+#         m = session_modules["phonemic_awareness"]
+#         feat_data.update({
+#             "p_weak_phonology": m.p_weak,
+#             "entropy_phonology": m.entropy,
+#             "num_items_phonology": m.num_items,
+#             "avg_time_phonology": m.sum_rt / m.num_items if m.num_items > 0 else 0,
+#             "slow_corr_ratio_phonology": m.slow_correct / m.correct if m.correct > 0 else 0,
+#         })
+
+#     features = TestFeatures(**feat_data)
+#     db.add(features)
+
+#     # XAI
+#     xai = TestXAI(
+#         test_id=test.id,
+#         method="adaptive_risk_profile",
+#         payload_json=json.dumps(global_risk.explanation),
+#         created_at=datetime.utcnow()
+#     )
+#     db.add(xai)
