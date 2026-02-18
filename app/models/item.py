@@ -9,6 +9,7 @@ class Item(Base):
     module = Column(String, index=True, nullable=False)     # e.g. "RAN"
     difficulty = Column(Float, nullable=False)
     max_time_s = Column(Float, nullable=True)
+    prompt_type = Column(String, nullable=True) # e.g. "audio_text", "image"
     prompt_text = Column(Text, nullable=True)
     prompt_media = Column(String, nullable=True)
     correct_option = Column(String, nullable=True)
