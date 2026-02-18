@@ -21,6 +21,8 @@ class TestBase(BaseModel):
     device_id: Optional[str] = None
     version: Optional[str] = None
     notes: Optional[str] = None
+    session_state: Optional[str] = None
+    status: Optional[str] = None
 
 class TestCreate(TestBase):
     pass

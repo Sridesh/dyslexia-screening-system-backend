@@ -5,6 +5,7 @@ from typing import Optional
 class TestModuleSumBase(BaseModel):
     test_id: int
     module: str
+    risk_label: Optional[str] = None
     p_weak_final: Optional[float] = None
     p_strong_final: Optional[float] = None
     entropy_final: Optional[float] = None

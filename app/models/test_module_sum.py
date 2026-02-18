@@ -8,6 +8,7 @@ class TestModuleSum(Base):
     id = Column(Integer, primary_key=True, index=True)
     test_id = Column(Integer, ForeignKey("test.id"), nullable=False)
     module = Column(String, index=True, nullable=False)
+    risk_label = Column(String, nullable=True) # weak, strong, uncertain
 
     p_weak_final = Column(Float, nullable=True)
     p_strong_final = Column(Float, nullable=True)
