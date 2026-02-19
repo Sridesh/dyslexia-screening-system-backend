@@ -70,7 +70,19 @@ def insert_seed_data():
       (23, 'object_recognition',  1.0, 15.0, 'image_choice', 'Which symbol sequence matches the one shown? Look carefully at the order',
            'images/obj/symbol_sequence_hard.png', 'C', '["A", "B", "C", "D"]', TRUE),
       (24, 'object_recognition',  1.5, 15.0, 'image_choice', 'Find the hidden shape inside the larger pattern',
-           'images/obj/embedded_figure.png', 'B', '["A", "B", "C", "D"]', TRUE);
+           'images/obj/embedded_figure.png', 'B', '["A", "B", "C", "D"]', TRUE),
+           (25, 'phonemic_awareness', -0.25, 10.0, 'audio_text',   'Put these sounds together: /f/ /i/ /sh/',
+           NULL, 'fish', '["fish", "fit", "dish", "fig"]', TRUE),
+      (26, 'phonemic_awareness',  0.25, 12.0, 'audio_text',   'How many sounds in the word LAMP?',
+           NULL, '4', '["3", "4", "5", "2"]', TRUE),
+      (27, 'ran',                -0.25, 5.0,  'image',        'Name this letter as fast as you can',
+           'images/ran/letter_S.png', 'S', NULL, TRUE),
+      (28, 'ran',                 0.25, 5.0,  'image',        'Name this number as fast as you can',
+           'images/ran/number_4.png', '4', NULL, TRUE),
+      (29, 'object_recognition', -0.25, 10.0, 'image_choice', 'Which letter faces the same way as the one in the box?',
+           'images/obj/letter_direction_easy.png', 'C', '["A", "B", "C", "D"]', TRUE),
+      (30, 'object_recognition',  0.25, 12.0, 'image_choice', 'Find the pair that matches exactly',
+           'images/obj/pair_match_moderate.png', 'A', '["A", "B", "C", "D"]', TRUE);
     """
     
     try:
