@@ -50,7 +50,7 @@ THETA_WEAK_THRESHOLD: float = 0.0
 # For now we use a fixed discrimination parameter per module.
 # You can refine this later or even move to item-level a_j values.[web:516]
 
-ITEM_DISCRIMINATION: Dict[str, float] = {"phonemic_awareness": 1.4, "ran": 1.2, "object_recognition": 0.8}
+ITEM_DISCRIMINATION: Dict[str, float] = {"phonemic_awareness": 1.4, "ran": 1.35, "object_recognition": 0.8}
 # ITEM_DISCRIMINATION: Dict[str, float] = {
 #     "phonemic_awareness": 1.2,
 #     "ran": 1.0,
@@ -122,8 +122,9 @@ MAX_ITEMS_TOTAL: int = 20
 P_CONFIDENT: float = 0.75
 ENTROPY_THRESHOLD: float = 0.70
 MIN_INFO_GAIN: float = 0.01
-RISK_SCORE_HIGH: float = 0.55
-RISK_SCORE_MODERATE: float = 0.40
+RISK_SCORE_HIGH: float = 0.65
+# RISK_SCORE_MODERATE: float = 0.40
+RISK_SCORE_MODERATE = 0.55
 
 
 # -------------------------------------------------

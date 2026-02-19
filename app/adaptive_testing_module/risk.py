@@ -86,29 +86,28 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     Compute global dyslexia risk category and explanation based on
     per-module classifications and RT patterns.
     """
+    # 1) Build per-module classifications
     module_results: Dict[str, ModuleClassification] = {}
     for module_id, stats in session.modules.items():
         module_results[module_id] = classify_module(module_id, stats)
 
-    # 1) Base risk score from weak probabilities (weighted)
+    # 2) Base risk score from weak probabilities (weighted)
     base_score = 0.0
     for module_id, mc in module_results.items():
         w = config.MODULE_WEIGHTS.get(module_id, 0.0)
         base_score += w * mc.p_weak
 
-    # 2) Adjustments from RT patterns (e.g., slow RAN)
+    # 3) RT-based adjustment (e.g., slow RAN)
     rt_adjustment = 0.0
     ran_res = module_results.get("ran")
     if ran_res is not None:
-        # If RAN is slow but still correct, we consider speed issues
+        # If RAN is slow but not already classified weak, bump risk slightly
         if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
-            rt_adjustment += 0.05  # modest increase
-
-    # You can add more RT-based adjustments here if desired.
+            rt_adjustment += 0.05
 
     risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
 
-    # 3) Map risk_score to category
+    # 4) Map risk_score to category (initial)
     if risk_score >= config.RISK_SCORE_HIGH:
         category: Literal["high", "moderate", "low"] = "high"
     elif risk_score >= config.RISK_SCORE_MODERATE:
@@ -116,7 +115,30 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     else:
         category = "low"
 
-    # 4) Confidence: complement of average entropy (simple proxy)
+    # ------------------------------------------------------------------
+    # 5) SINGLE‑DEFICIT OVERRIDE
+    # ------------------------------------------------------------------
+    SINGLE_DEFICIT_THRESHOLD = 0.80  # p_weak threshold for single-module override
+
+    pa_res = module_results.get("phonemic_awareness")
+    ran_res = module_results.get("ran")
+
+    pa_p_weak = pa_res.p_weak if pa_res is not None else 0.0
+    ran_p_weak = ran_res.p_weak if ran_res is not None else 0.0
+
+    single_deficit_detected = (
+        pa_p_weak >= SINGLE_DEFICIT_THRESHOLD
+        or ran_p_weak >= SINGLE_DEFICIT_THRESHOLD
+    )
+
+    # If a clear PA or RAN deficit is present but composite score is "low",
+    # bump to at least "moderate".
+    if single_deficit_detected and category == "low":
+        category = "moderate"
+        risk_score = max(risk_score, config.RISK_SCORE_MODERATE + 0.01)
+    # ------------------------------------------------------------------
+
+    # 6) Confidence from entropy
     avg_entropy = (
         sum(m.entropy for m in session.modules.values())
         / max(len(session.modules), 1)
@@ -132,6 +154,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         modules=module_results,
         explanation=explanation,
     )
+
 
 # app/ef_ads/risk.py (append)
 
@@ -199,6 +222,59 @@ def build_explanation_object(
         "global": global_summary,
         "modules": module_details,
     }
+
+# def compute_global_risk(session: SessionState) -> GlobalRiskResult:
+#     """
+#     Compute global dyslexia risk category and explanation based on
+#     per-module classifications and RT patterns.
+#     """
+#     module_results: Dict[str, ModuleClassification] = {}
+#     for module_id, stats in session.modules.items():
+#         module_results[module_id] = classify_module(module_id, stats)
+
+#     # 1) Base risk score from weak probabilities (weighted)
+#     base_score = 0.0
+#     for module_id, mc in module_results.items():
+#         w = config.MODULE_WEIGHTS.get(module_id, 0.0)
+#         base_score += w * mc.p_weak
+
+#     # 2) Adjustments from RT patterns (e.g., slow RAN)
+#     rt_adjustment = 0.0
+#     ran_res = module_results.get("ran")
+#     if ran_res is not None:
+#         # If RAN is slow but still correct, we consider speed issues
+#         if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
+#             rt_adjustment += 0.05  # modest increase
+
+#     # You can add more RT-based adjustments here if desired.
+
+#     risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
+
+#     # 3) Map risk_score to category
+#     if risk_score >= config.RISK_SCORE_HIGH:
+#         category: Literal["high", "moderate", "low"] = "high"
+#     elif risk_score >= config.RISK_SCORE_MODERATE:
+#         category = "moderate"
+#     else:
+#         category = "low"
+
+#     # 4) Confidence: complement of average entropy (simple proxy)
+#     avg_entropy = (
+#         sum(m.entropy for m in session.modules.values())
+#         / max(len(session.modules), 1)
+#     )
+#     confidence = max(0.0, min(1.0, 1.0 - avg_entropy))
+
+#     explanation = build_explanation_object(category, risk_score, confidence, module_results)
+
+#     return GlobalRiskResult(
+#         risk_category=category,
+#         risk_score=risk_score,
+#         confidence=confidence,
+#         modules=module_results,
+#         explanation=explanation,
+#     )
+
 
 # # app/ef_ads/risk.py (append)
 
