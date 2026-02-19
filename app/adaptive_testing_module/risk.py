@@ -118,7 +118,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     # ------------------------------------------------------------------
     # 5) SINGLE‑DEFICIT OVERRIDE
     # ------------------------------------------------------------------
-    SINGLE_DEFICIT_THRESHOLD = 0.75  # p_weak threshold for single-module override
+    SINGLE_DEFICIT_THRESHOLD = 0.80  # p_weak threshold for single-module override
 
     pa_res = module_results.get("phonemic_awareness")
     ran_res = module_results.get("ran")

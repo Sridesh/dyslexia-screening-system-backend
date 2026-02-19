@@ -12,11 +12,11 @@ from app.simulations.sim_core import run_batch
 from app.simulations.metrics import compute_metrics
 
 PARAM_GRID = {
-    "RISK_SCORE_HIGH":     [0.55, 0.60, 0.65],
-    "RISK_SCORE_MODERATE": [0.40, 0.45, 0.50],
+    "RISK_SCORE_HIGH":     [0.60, 0.65],
+    "RISK_SCORE_MODERATE": [0.45, 0.50, 0.55],
     "ENTROPY_THRESHOLD":   [0.70, 0.75, 0.80],
     "P_CONFIDENT":         [0.75, 0.80],
-    "MIN_INFO_GAIN":       [0.01, 0.02, 0.03],
+    "MIN_INFO_GAIN":       [0.01, 0.02],
 }
 
 def iter_configs(grid: Dict[str, List[Any]]):
