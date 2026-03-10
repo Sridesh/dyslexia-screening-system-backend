@@ -57,6 +57,22 @@ ITEM_DISCRIMINATION: Dict[str, float] = {"phonemic_awareness": 1.4, "ran": 1.35,
 #     "object_recognition": 1.0,
 # }
 
+# Pseudo-guessing parameter (c) - probability of guessing correctly (lower bound)
+# Object recognition usually has 4 choices, so c ~ 0.25
+ITEM_GUESSING: Dict[str, float] = {
+    "phonemic_awareness": 0.1,
+    "ran": 0.05,
+    "object_recognition": 0.25,
+}
+
+# Slipping parameter (d) - probability of making a mistake despite knowing the answer
+# Children are prone to distraction, so a small slip rate is expected
+ITEM_SLIPPING: Dict[str, float] = {
+    "phonemic_awareness": 0.05,
+    "ran": 0.10,
+    "object_recognition": 0.05,
+}
+
 # Prior mean and variance for theta (for documentation purposes)
 THETA_PRIOR_MEAN: float = 0.0
 THETA_PRIOR_VAR: float = 1.0

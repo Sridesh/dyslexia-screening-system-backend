@@ -56,12 +56,14 @@ def expected_entropy_after_item(
     theta_posterior = module_stats.theta_posterior
     theta_grid = config.THETA_GRID
     a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
+    c = config.ITEM_GUESSING.get(module_id, 0.0)
+    d = config.ITEM_SLIPPING.get(module_id, 0.0)
     b = item.difficulty
 
     # 1) Compute P(correct) and P(incorrect) under current posterior
     p_correct = 0.0
     for p_theta, theta in zip(theta_posterior, theta_grid):
-        p_c = bayes.prob_correct(theta, a, b)
+        p_c = bayes.prob_correct(theta, a, b, c, d)
         p_correct += p_theta * p_c
 
     p_correct = max(0.0, min(1.0, p_correct))
