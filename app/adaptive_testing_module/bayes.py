@@ -20,23 +20,33 @@ from .state import ModuleStats
 
 # app/ef_ads/bayes.py (append)
 
-def prob_correct(theta: float, a: float, b: float) -> float:
+def prob_correct(theta: float, a: float, b: float, c: float = 0.0, d: float = 0.0) -> float:
     """
-    2PL-like item response function.
+    4PL item response function.
 
     Parameters
     ----------
     theta : latent ability
     a     : discrimination parameter
     b     : item difficulty parameter
+    c     : pseudo-guessing parameter (lower asymptote)
+    d     : slipping parameter (1 - upper asymptote)
 
     Returns
     -------
     Probability of a correct response in [0, 1].
     """
-    # Avoid overflow in exp by clamping the exponent if necessary (later if needed)
+    # Avoid overflow in exp by clamping the exponent
     exponent = -a * (theta - b)
-    return 1.0 / (1.0 + exp(exponent))
+    if exponent > 500:
+        p_2pl = 0.0
+    elif exponent < -500:
+        p_2pl = 1.0
+    else:
+        p_2pl = 1.0 / (1.0 + exp(exponent))
+        
+    # Apply 4PL transformation: P = c + (1 - c - d) * P_2PL
+    return c + (1.0 - c - d) * p_2pl
 
 # app/ef_ads/bayes.py (append)
 
@@ -61,6 +71,8 @@ def update_theta_posterior_for_item(
     new_theta_posterior : updated, normalised posterior
     """
     a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
+    c = config.ITEM_GUESSING.get(module_id, 0.0)
+    d = config.ITEM_SLIPPING.get(module_id, 0.0)
     theta_grid = config.THETA_GRID
 
     new_posterior: List[float] = []
@@ -68,7 +80,7 @@ def update_theta_posterior_for_item(
 
     # Compute unnormalised posterior
     for p_prior, theta in zip(theta_posterior, theta_grid):
-        p_c = prob_correct(theta, a, item_difficulty)
+        p_c = prob_correct(theta, a, item_difficulty, c, d)
         likelihood = p_c if is_correct else (1.0 - p_c)
         posterior_val = p_prior * likelihood
         new_posterior.append(posterior_val)
