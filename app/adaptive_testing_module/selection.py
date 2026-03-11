@@ -42,6 +42,7 @@ def expected_entropy_after_item(
     module_stats: ModuleStats,
     module_id: str,
     item: CandidateItem,
+    total_time_seconds: float = 0.0,
 ) -> float:
     """
     Compute the expected weak/strong entropy for a module if we administer
@@ -57,7 +58,9 @@ def expected_entropy_after_item(
     theta_grid = config.THETA_GRID
     a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
     c = config.ITEM_GUESSING.get(module_id, 0.0)
-    d = config.ITEM_SLIPPING.get(module_id, 0.0)
+    d_base = config.ITEM_SLIPPING.get(module_id, 0.0)
+    slip_penalty = rt_fatigue.compute_fatigue_slip_penalty(total_time_seconds)
+    d = min(1.0, d_base + slip_penalty)
     b = item.difficulty
 
     # 1) Compute P(correct) and P(incorrect) under current posterior
@@ -78,6 +81,7 @@ def expected_entropy_after_item(
             module_id=module_id,
             item_difficulty=b,
             is_correct=outcome,
+            total_time_seconds=total_time_seconds,
         )
         ws = bayes.derive_weak_strong_probs(posterior)
         return bayes.entropy_weak_strong(ws["p_weak"], ws["p_strong"])
@@ -88,6 +92,7 @@ def expected_entropy_after_item(
         module_id=module_id,
         item_difficulty=b,
         is_correct=True,
+        total_time_seconds=total_time_seconds,
     )
     ws_correct = bayes.derive_weak_strong_probs(posterior_correct)
     H_correct = bayes.entropy_weak_strong(ws_correct["p_weak"], ws_correct["p_strong"])
@@ -98,6 +103,7 @@ def expected_entropy_after_item(
         module_id=module_id,
         item_difficulty=b,
         is_correct=False,
+        total_time_seconds=total_time_seconds,
     )
     ws_incorrect = bayes.derive_weak_strong_probs(posterior_incorrect)
     H_incorrect = bayes.entropy_weak_strong(
@@ -114,6 +120,7 @@ def information_gain_for_item(
     module_stats: ModuleStats,
     module_id: str,
     item: CandidateItem,
+    total_time_seconds: float = 0.0,
 ) -> float:
     """
     Compute base information gain (entropy reduction) for a given item in
@@ -124,7 +131,7 @@ def information_gain_for_item(
     G_base = H_current - E[H_after_item]
     """
     H_current = module_stats.entropy
-    expected_H = expected_entropy_after_item(module_stats, module_id, item)
+    expected_H = expected_entropy_after_item(module_stats, module_id, item, total_time_seconds)
     gain = H_current - expected_H
     # Ensure non-negative (tiny numerical negatives are set to zero)
     return max(0.0, gain)
@@ -138,24 +145,18 @@ def adjusted_gain_for_item(
     item: CandidateItem,
 ) -> float:
     """
-    Compute adjusted information gain for an item by scaling base entropy
-    reduction with a fatigue factor.
-
-    Optionally, this can later incorporate time-efficiency adjustments
-    (information per expected time unit).
+    Compute adjusted information gain for an item.
+    Note: Fatigue is now incorporated inherently into the Bayesian math via
+    the slipping parameter ('d_effective') inside information_gain_for_item.
     """
-    base_gain = information_gain_for_item(module_stats, module_id, item)
+    base_gain = information_gain_for_item(
+        module_stats, module_id, item, session.total_time_seconds
+    )
+    
     if base_gain <= 0.0:
         return 0.0
 
-    fatigue_factor = rt_fatigue.compute_fatigue_factor(session.total_time_seconds)
-
-    # Optionally include a simple time-efficiency adjustment:
-    #   gain_per_time = base_gain / max(item.max_time_seconds, eps)
-    # For now we only apply fatigue; you can uncomment time scaling later.
-    adjusted = base_gain * fatigue_factor
-
-    return adjusted
+    return base_gain
 
 # app/ef_ads/selection.py (append)
 

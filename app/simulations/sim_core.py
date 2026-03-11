@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Tuple
-from app.adaptive_testing_module import bayes, orchestration_engine, risk
+from app.adaptive_testing_module import bayes, orchestration_engine, risk, config
 from app.adaptive_testing_module.selection import CandidateItem
 from .profiles import SyntheticChild, PROFILES
 from .item_bank import load_item_bank_from_csv
@@ -9,9 +9,11 @@ from .item_bank import load_item_bank_from_csv
 def simulate_response(child: SyntheticChild, item: CandidateItem, a_by_module: Dict[str, float]) -> Tuple[bool, float]:
     theta = child.theta_by_module.get(item.module_id, 0.0)
     a = a_by_module.get(item.module_id, 1.0)
+    c = config.ITEM_GUESSING.get(item.module_id, 0.0)
+    d = config.ITEM_SLIPPING.get(item.module_id, 0.0)
     b = item.difficulty
     
-    p_correct = bayes.prob_correct(theta, a, b)
+    p_correct = bayes.prob_correct(theta, a, b, c, d)
     is_correct = random.random() < p_correct
 
     # Simple RT model: harder + incorrect = slower

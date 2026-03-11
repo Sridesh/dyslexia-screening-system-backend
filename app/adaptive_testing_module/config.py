@@ -87,9 +87,11 @@ SLOW_RT_FACTOR: float = 1.3
 # Optional: "rapid guess" if RT < RAPID_GUESS_FRACTION * item.max_time_seconds
 RAPID_GUESS_FRACTION: float = 0.25
 
-# Fatigue function: fatigue_factor = max(MIN_FATIGUE_FACTOR, 1 - FATIGUE_SLOPE * minutes)
-FATIGUE_SLOPE: float = 0.05   # rate of decay per minute
-MIN_FATIGUE_FACTOR: float = 0.4  # lower bound on information scaling[web:366][web:513]
+# Fatigue function: determines how much child's slipping rate (d parameter) increases over time
+# We add this penalty to their base slipping probability.
+FATIGUE_SLIP_RATE_PER_MIN: float = 0.015   # slipping probability increases by 1.5% each minute
+MAX_SLIP_PENALTY: float = 0.3              # max additional slipping parameter (cap at 30%)
+
 
 
 # -------------------------------------------------

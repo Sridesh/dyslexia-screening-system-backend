@@ -60,7 +60,9 @@ def max_possible_gain_across_modules(
             if item is None or item.module_id != module_id:
                 continue
 
-            gain = selection.information_gain_for_item(stats, module_id, item)
+            gain = selection.information_gain_for_item(
+                stats, module_id, item, session.total_time_seconds
+            )
             if gain > max_gain:
                 max_gain = gain
 

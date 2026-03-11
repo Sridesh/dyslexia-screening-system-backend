@@ -5,7 +5,7 @@ import os
 from typing import Dict, Any, List
 
 # Ensure app is in path if running directly
-sys.path.append(os.getcwd())
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from app.adaptive_testing_module import config
 from app.simulations.sim_core import run_batch
