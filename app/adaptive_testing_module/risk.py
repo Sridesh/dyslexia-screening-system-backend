@@ -135,8 +135,13 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
 
     # 4) Determine Subtype
     pa_label = module_results.get("phonemic_awareness").label if "phonemic_awareness" in module_results else "uncertain"
-    ran_label = module_results.get("ran").label if "ran" in module_results else "uncertain"
+    ran_obj = module_results.get("ran")
+    ran_label = ran_obj.label if ran_obj else "uncertain"
     or_label = module_results.get("object_recognition").label if "object_recognition" in module_results else "uncertain"
+
+    # Weakness 2 Fix: If RAN accuracy was fine, but they were incredibly slow, clinically label RAN as weak.
+    if ran_obj and (ran_obj.avg_rt > 6.0 or ran_obj.slow_correct_ratio > 0.5):
+        ran_label = "weak"
 
     if pa_label == "weak" and ran_label == "weak":
         subtype = "Double_deficit"
