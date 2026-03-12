@@ -86,57 +86,51 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     Compute global dyslexia risk category and explanation based on
     per-module classifications and RT patterns.
     """
-    # 1) Build per-module classifications
+    import math
+    
+    # 1) Build per-module classifications and extract expected thetas for ML
     module_results: Dict[str, ModuleClassification] = {}
+    estimated_thetas: Dict[str, float] = {}
+    
     for module_id, stats in session.modules.items():
         module_results[module_id] = classify_module(module_id, stats)
+        # Expected value of theta given the posterior distribution
+        if sum(stats.theta_posterior) > 0:
+            est_theta = sum(p * t for p, t in zip(stats.theta_posterior, config.THETA_GRID))
+        else:
+            est_theta = 0.0
+        estimated_thetas[module_id] = est_theta
 
-    # 2) Base risk score from weak probabilities (weighted)
-    base_score = 0.0
-    for module_id, mc in module_results.items():
-        w = config.MODULE_WEIGHTS.get(module_id, 0.0)
-        base_score += w * mc.p_weak
-
-    # 3) RT-based adjustment (e.g., slow RAN)
-    rt_adjustment = 0.0
+    # 2) Apply Logistic Regression Math
+    # Features trained via the 2,000 synthetic simulations run
+    pa_theta = estimated_thetas.get("phonemic_awareness", 0.0)
+    ran_theta = estimated_thetas.get("ran", 0.0)
+    or_theta = estimated_thetas.get("object_recognition", 0.0)
+    
     ran_res = module_results.get("ran")
-    if ran_res is not None:
-        # If RAN is slow but not already classified weak, bump risk slightly
-        if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
-            rt_adjustment += 0.05
+    ran_rt = ran_res.avg_rt if ran_res and ran_res.num_items > 0 else 5.0
 
-    risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
+    w_pa         = -1.6543
+    w_ran        = -0.4828
+    w_or         = 0.0000
+    w_rt_ran     = 1.4696
+    bias         = -5.2338
 
-    # 4) Map risk_score to category (initial)
+    logit = bias + (w_pa * pa_theta) + (w_ran * ran_theta) + (w_or * or_theta) + (w_rt_ran * ran_rt)
+    
+    # Sigmoid function for mathematical probability
+    try:
+        risk_score = 1.0 / (1.0 + math.exp(-logit))
+    except OverflowError:
+        risk_score = 0.0 if logit < 0 else 1.0
+
+    # 3) Map to Category
     if risk_score >= config.RISK_SCORE_HIGH:
         category: Literal["high", "moderate", "low"] = "high"
     elif risk_score >= config.RISK_SCORE_MODERATE:
         category = "moderate"
     else:
         category = "low"
-
-    # ------------------------------------------------------------------
-    # 5) SINGLE‑DEFICIT OVERRIDE
-    # ------------------------------------------------------------------
-    SINGLE_DEFICIT_THRESHOLD = 0.80  # p_weak threshold for single-module override
-
-    pa_res = module_results.get("phonemic_awareness")
-    ran_res = module_results.get("ran")
-
-    pa_p_weak = pa_res.p_weak if pa_res is not None else 0.0
-    ran_p_weak = ran_res.p_weak if ran_res is not None else 0.0
-
-    single_deficit_detected = (
-        pa_p_weak >= SINGLE_DEFICIT_THRESHOLD
-        or ran_p_weak >= SINGLE_DEFICIT_THRESHOLD
-    )
-
-    # If a clear PA or RAN deficit is present but composite score is "low",
-    # bump to at least "moderate".
-    if single_deficit_detected and category == "low":
-        category = "moderate"
-        risk_score = max(risk_score, config.RISK_SCORE_MODERATE + 0.01)
-    # ------------------------------------------------------------------
 
     # 6) Confidence from entropy
     avg_entropy = (
