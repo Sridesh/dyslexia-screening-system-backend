@@ -99,8 +99,8 @@ MAX_SLIP_PENALTY: float = 0.3              # max additional slipping parameter (
 # -------------------------------------------------
 
 # Minimum items that must be administered in each module before we trust a classification
-# MIN_ITEMS_PER_MODULE: int = 4
-MIN_ITEMS_PER_MODULE: int = 3
+# MIN_ITEMS_PER_MODULE: int = 3
+MIN_ITEMS_PER_MODULE: int = 4
 
 # Hard caps (safety limits)
 # MAX_ITEMS_TOTAL: int = 25
@@ -135,7 +135,7 @@ MODULE_WEIGHTS: Dict[str, float] = {
 # }
 
 # Risk thresholds on some abstract# Tuned values from systematic_tuning.py (J=0.660)
-MIN_ITEMS_PER_MODULE: int = 3
+MIN_ITEMS_PER_MODULE: int = 4
 MAX_ITEMS_TOTAL: int = 20
 P_CONFIDENT: float = 0.75
 ENTROPY_THRESHOLD: float = 0.70

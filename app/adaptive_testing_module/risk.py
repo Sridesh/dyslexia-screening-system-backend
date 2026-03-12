@@ -76,6 +76,7 @@ class GlobalRiskResult:
     risk_category: Literal["high", "moderate", "low"]
     risk_score: float
     confidence: float
+    subtype: str
     modules: Dict[str, ModuleClassification]
     explanation: Dict
 
@@ -132,6 +133,26 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     else:
         category = "low"
 
+    # 4) Determine Subtype
+    pa_label = module_results.get("phonemic_awareness").label if "phonemic_awareness" in module_results else "uncertain"
+    ran_label = module_results.get("ran").label if "ran" in module_results else "uncertain"
+    or_label = module_results.get("object_recognition").label if "object_recognition" in module_results else "uncertain"
+
+    if pa_label == "weak" and ran_label == "weak":
+        subtype = "Double_deficit"
+    elif pa_label == "weak" and ran_label != "weak":
+        subtype = "PA_deficit"
+    elif pa_label != "weak" and ran_label == "weak":
+        subtype = "RAN_deficit"
+    elif or_label == "weak" and pa_label != "weak" and ran_label != "weak":
+        subtype = "Visual_primary"
+    else:
+        # If it's low risk entirely, subtype is None
+        if category == "low":
+            subtype = "None"
+        else:
+            subtype = "Mixed_or_uncertain"
+
     # 6) Confidence from entropy
     avg_entropy = (
         sum(m.entropy for m in session.modules.values())
@@ -145,6 +166,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         risk_category=category,
         risk_score=risk_score,
         confidence=confidence,
+        subtype=subtype,
         modules=module_results,
         explanation=explanation,
     )

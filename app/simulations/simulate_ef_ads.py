@@ -45,13 +45,20 @@ def make_large_synthetic_item_bank() -> Tuple[Dict[int, selection.CandidateItem]
 class SyntheticChild:
     name: str
     theta_by_module: Dict[str, float]
+    forced_slow_ran: bool = False
 
 children = [
-    SyntheticChild("Stellar_Student", {"phonemic_awareness": 2.0, "ran": 2.0, "object_recognition": 1.5}),
-    SyntheticChild("Average_Learner", {"phonemic_awareness": 0.0, "ran": 0.0, "object_recognition": 0.0}),
-    SyntheticChild("Struggling_All_Areas", {"phonemic_awareness": -1.8, "ran": -1.5, "object_recognition": -1.5}),
-    SyntheticChild("Classic_Dyslexia_Profile", {"phonemic_awareness": -2.0, "ran": -1.5, "object_recognition": 0.5}),
-    SyntheticChild("Isolated_RAN_Deficit", {"phonemic_awareness": 0.5, "ran": -2.0, "object_recognition": 1.0}),
+    SyntheticChild("Strong_All", {"phonemic_awareness": 1.5, "ran": 1.5, "object_recognition": 1.5}),
+    SyntheticChild("Average_Kid", {"phonemic_awareness": 0.0, "ran": 0.0, "object_recognition": 0.0}),
+    SyntheticChild("Borderline_All", {"phonemic_awareness": -0.3, "ran": -0.3, "object_recognition": -0.3}),
+    SyntheticChild("PA_only_mild", {"phonemic_awareness": -0.8, "ran": 0.0, "object_recognition": 0.0}),
+    SyntheticChild("PA_only_severe", {"phonemic_awareness": -1.5, "ran": 0.0, "object_recognition": 0.0}),
+    SyntheticChild("RAN_only_mild", {"phonemic_awareness": 0.0, "ran": -0.8, "object_recognition": 0.0}),
+    SyntheticChild("RAN_only_severe", {"phonemic_awareness": 0.0, "ran": -1.5, "object_recognition": 0.0}),
+    SyntheticChild("Double_deficit_mild", {"phonemic_awareness": -0.8, "ran": -0.8, "object_recognition": 0.0}),
+    SyntheticChild("Double_deficit_severe", {"phonemic_awareness": -1.5, "ran": -1.5, "object_recognition": 0.0}),
+    SyntheticChild("Visual_primary", {"phonemic_awareness": 0.0, "ran": 0.0, "object_recognition": -1.2}),
+    SyntheticChild("Slow_But_Accurate_RAN", {"phonemic_awareness": 0.0, "ran": 0.0, "object_recognition": 0.0}, forced_slow_ran=True),
 ]
 
 # --------------------------------------------------------------------------
@@ -74,8 +81,12 @@ def simulate_response_for_child(child: SyntheticChild, item: selection.Candidate
     noise = random.uniform(-1.0, 1.0)
     
     rt_seconds = max(1.0, base_rt + difficulty_effect + noise)
+    
+    if child.forced_slow_ran and item.module_id == "ran":
+        rt_seconds += 6.0 # Force an artificially slow reaction time
+        
     # Ensure they don't take longer than technically allowed for the sake of the sim
-    rt_seconds = min(rt_seconds, item.max_time_seconds + 3.0) 
+    rt_seconds = min(rt_seconds, item.max_time_seconds + 5.0) 
 
     return is_correct, rt_seconds
 
@@ -141,6 +152,7 @@ def simulate_single_test(child: SyntheticChild, test_id: int):
         "total_items": sum(m.num_items for m in session.modules.values()),
         "total_time_s": session.total_time_seconds,
         "global_risk": global_risk,
+        "subtype": global_risk.subtype if global_risk else "None",
         "estimated_thetas": estimated_thetas
     }
 
@@ -164,7 +176,9 @@ def summarize_results(results):
         stats[c]["sum_time"] += r["total_time_s"]
         
         risk_cat = r["global_risk"].risk_category if r["global_risk"] else "None"
+        subtype = r["subtype"]
         stats[c]["risk_counts"][risk_cat] += 1
+        stats[c]["risk_counts"][f"Subtype: {subtype}"] += 1
         
         true_thetas = child_map[c].theta_by_module
         for mid, est_t in r["estimated_thetas"].items():
