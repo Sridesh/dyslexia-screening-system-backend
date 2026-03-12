@@ -141,8 +141,14 @@ P_CONFIDENT: float = 0.75
 ENTROPY_THRESHOLD: float = 0.70
 MIN_INFO_GAIN: float = 0.01
 RISK_SCORE_HIGH: float = 0.50
-# RISK_SCORE_MODERATE: float = 0.40
-RISK_SCORE_MODERATE = 0.35
+RISK_SCORE_MODERATE: float = 0.35
+
+# -------------------------------------------------
+# ML Classifier Selection
+# -------------------------------------------------
+# "logistic_regression" (transparent math formula) or
+# "random_forest" (pre-trained serialized ensemble)
+ML_MODEL_TYPE: str = "random_forest"
 
 
 # -------------------------------------------------

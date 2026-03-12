@@ -17,6 +17,7 @@ from typing import Dict, Literal
 
 from . import config
 from .state import SessionState, ModuleStats
+from .random_forest_model import predict_risk_rf
 
 # app/ef_ads/risk.py (append)
 
@@ -102,7 +103,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
             est_theta = 0.0
         estimated_thetas[module_id] = est_theta
 
-    # 2) Apply Logistic Regression Math
+    # 2) Apply ML Math
     # Features trained via the 2,000 synthetic simulations run
     pa_theta = estimated_thetas.get("phonemic_awareness", 0.0)
     ran_theta = estimated_thetas.get("ran", 0.0)
@@ -111,19 +112,24 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     ran_res = module_results.get("ran")
     ran_rt = ran_res.avg_rt if ran_res and ran_res.num_items > 0 else 5.0
 
-    w_pa         = -1.6543
-    w_ran        = -0.4828
-    w_or         = 0.0000
-    w_rt_ran     = 1.4696
-    bias         = -5.2338
+    if getattr(config, "ML_MODEL_TYPE", "logistic_regression") == "random_forest":
+        # Route to serialized ensemble model
+        risk_score = predict_risk_rf(pa_theta, ran_theta, or_theta, ran_rt)
+    else:
+        # Route to explicit mathematical logistic regression
+        w_pa         = -1.6543
+        w_ran        = -0.4828
+        w_or         = 0.0000
+        w_rt_ran     = 1.4696
+        bias         = -5.2338
 
-    logit = bias + (w_pa * pa_theta) + (w_ran * ran_theta) + (w_or * or_theta) + (w_rt_ran * ran_rt)
-    
-    # Sigmoid function for mathematical probability
-    try:
-        risk_score = 1.0 / (1.0 + math.exp(-logit))
-    except OverflowError:
-        risk_score = 0.0 if logit < 0 else 1.0
+        logit = bias + (w_pa * pa_theta) + (w_ran * ran_theta) + (w_or * or_theta) + (w_rt_ran * ran_rt)
+        
+        # Sigmoid function for mathematical probability
+        try:
+            risk_score = 1.0 / (1.0 + math.exp(-logit))
+        except OverflowError:
+            risk_score = 0.0 if logit < 0 else 1.0
 
     # 3) Map to Category
     if risk_score >= config.RISK_SCORE_HIGH:
