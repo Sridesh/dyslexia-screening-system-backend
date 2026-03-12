@@ -87,9 +87,11 @@ SLOW_RT_FACTOR: float = 1.3
 # Optional: "rapid guess" if RT < RAPID_GUESS_FRACTION * item.max_time_seconds
 RAPID_GUESS_FRACTION: float = 0.25
 
-# Fatigue function: fatigue_factor = max(MIN_FATIGUE_FACTOR, 1 - FATIGUE_SLOPE * minutes)
-FATIGUE_SLOPE: float = 0.05   # rate of decay per minute
-MIN_FATIGUE_FACTOR: float = 0.4  # lower bound on information scaling[web:366][web:513]
+# Fatigue function: determines how much child's slipping rate (d parameter) increases over time
+# We add this penalty to their base slipping probability.
+FATIGUE_SLIP_RATE_PER_MIN: float = 0.015   # slipping probability increases by 1.5% each minute
+MAX_SLIP_PENALTY: float = 0.3              # max additional slipping parameter (cap at 30%)
+
 
 
 # -------------------------------------------------
@@ -97,8 +99,8 @@ MIN_FATIGUE_FACTOR: float = 0.4  # lower bound on information scaling[web:366][w
 # -------------------------------------------------
 
 # Minimum items that must be administered in each module before we trust a classification
-# MIN_ITEMS_PER_MODULE: int = 4
-MIN_ITEMS_PER_MODULE: int = 3
+# MIN_ITEMS_PER_MODULE: int = 3
+MIN_ITEMS_PER_MODULE: int = 4
 
 # Hard caps (safety limits)
 # MAX_ITEMS_TOTAL: int = 25
@@ -133,14 +135,20 @@ MODULE_WEIGHTS: Dict[str, float] = {
 # }
 
 # Risk thresholds on some abstract# Tuned values from systematic_tuning.py (J=0.660)
-MIN_ITEMS_PER_MODULE: int = 3
+MIN_ITEMS_PER_MODULE: int = 4
 MAX_ITEMS_TOTAL: int = 20
 P_CONFIDENT: float = 0.75
 ENTROPY_THRESHOLD: float = 0.70
 MIN_INFO_GAIN: float = 0.01
-RISK_SCORE_HIGH: float = 0.65
-# RISK_SCORE_MODERATE: float = 0.40
-RISK_SCORE_MODERATE = 0.55
+RISK_SCORE_HIGH: float = 0.56
+RISK_SCORE_MODERATE: float = 0.54
+# -------------------------------------------------
+# ML Classifier Selection
+# -------------------------------------------------
+# "rule_based" (original deterministic logic),
+# "logistic_regression" (linear mathematical formula), or
+# "random_forest" (pre-trained serialized ensemble)
+ML_MODEL_TYPE: str = "random_forest"
 
 
 # -------------------------------------------------

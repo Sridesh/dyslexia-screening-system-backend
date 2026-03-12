@@ -17,6 +17,7 @@ from typing import Dict, Literal
 
 from . import config
 from .state import SessionState, ModuleStats
+from .random_forest_model import predict_risk_rf
 
 # app/ef_ads/risk.py (append)
 
@@ -76,6 +77,7 @@ class GlobalRiskResult:
     risk_category: Literal["high", "moderate", "low"]
     risk_score: float
     confidence: float
+    subtype: str
     modules: Dict[str, ModuleClassification]
     explanation: Dict
 
@@ -86,28 +88,66 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     Compute global dyslexia risk category and explanation based on
     per-module classifications and RT patterns.
     """
-    # 1) Build per-module classifications
+    import math
+    
+    # 1) Build per-module classifications and extract expected thetas for ML
     module_results: Dict[str, ModuleClassification] = {}
+    estimated_thetas: Dict[str, float] = {}
+    
     for module_id, stats in session.modules.items():
         module_results[module_id] = classify_module(module_id, stats)
+        # Expected value of theta given the posterior distribution
+        if sum(stats.theta_posterior) > 0:
+            est_theta = sum(p * t for p, t in zip(stats.theta_posterior, config.THETA_GRID))
+        else:
+            est_theta = 0.0
+        estimated_thetas[module_id] = est_theta
 
-    # 2) Base risk score from weak probabilities (weighted)
-    base_score = 0.0
-    for module_id, mc in module_results.items():
-        w = config.MODULE_WEIGHTS.get(module_id, 0.0)
-        base_score += w * mc.p_weak
-
-    # 3) RT-based adjustment (e.g., slow RAN)
-    rt_adjustment = 0.0
+    # 2) Apply ML Math
+    # Features trained via the 2,000 synthetic simulations run
+    pa_theta = estimated_thetas.get("phonemic_awareness", 0.0)
+    ran_theta = estimated_thetas.get("ran", 0.0)
+    or_theta = estimated_thetas.get("object_recognition", 0.0)
+    
     ran_res = module_results.get("ran")
-    if ran_res is not None:
-        # If RAN is slow but not already classified weak, bump risk slightly
-        if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
-            rt_adjustment += 0.05
+    ran_rt = ran_res.avg_rt if ran_res and ran_res.num_items > 0 else 5.0
+    
+    ml_type = getattr(config, "ML_MODEL_TYPE", "random_forest")
 
-    risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
+    if ml_type == "random_forest":
+        # Route to serialized ensemble model
+        risk_score = predict_risk_rf(pa_theta, ran_theta, or_theta, ran_rt)
+    elif ml_type == "logistic_regression":
+        # Route to explicit mathematical logistic regression
+        w_pa         = -1.6543
+        w_ran        = -0.4828
+        w_or         = 0.0000
+        w_rt_ran     = 1.4696
+        bias         = -5.2338
 
-    # 4) Map risk_score to category (initial)
+        logit = bias + (w_pa * pa_theta) + (w_ran * ran_theta) + (w_or * or_theta) + (w_rt_ran * ran_rt)
+        
+        # Sigmoid function for mathematical probability
+        try:
+            risk_score = 1.0 / (1.0 + math.exp(-logit))
+        except OverflowError:
+            risk_score = 0.0 if logit < 0 else 1.0
+    else:
+        # Route to original deterministic rule-based logic (Smart fallback)
+        base_score = 0.0
+        for m_id, mc in module_results.items():
+            w = config.MODULE_WEIGHTS.get(m_id, 0.0)
+            base_score += w * mc.p_weak
+            
+        rt_adjustment = 0.0
+        if ran_res is not None:
+            # If RAN is slow but correct, penalize risk manually (Smart Rule)
+            if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
+                rt_adjustment += 0.10  # modest penalty
+                
+        risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
+
+    # 3) Map to Category
     if risk_score >= config.RISK_SCORE_HIGH:
         category: Literal["high", "moderate", "low"] = "high"
     elif risk_score >= config.RISK_SCORE_MODERATE:
@@ -115,28 +155,30 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     else:
         category = "low"
 
-    # ------------------------------------------------------------------
-    # 5) SINGLE‑DEFICIT OVERRIDE
-    # ------------------------------------------------------------------
-    SINGLE_DEFICIT_THRESHOLD = 0.80  # p_weak threshold for single-module override
+    # 4) Determine Subtype
+    pa_label = module_results.get("phonemic_awareness").label if "phonemic_awareness" in module_results else "uncertain"
+    ran_obj = module_results.get("ran")
+    ran_label = ran_obj.label if ran_obj else "uncertain"
+    or_label = module_results.get("object_recognition").label if "object_recognition" in module_results else "uncertain"
 
-    pa_res = module_results.get("phonemic_awareness")
-    ran_res = module_results.get("ran")
+    # Weakness 2 Fix: If RAN accuracy was fine, but they were incredibly slow, clinically label RAN as weak.
+    if ran_obj and (ran_obj.avg_rt > 6.0 or ran_obj.slow_correct_ratio > 0.5):
+        ran_label = "weak"
 
-    pa_p_weak = pa_res.p_weak if pa_res is not None else 0.0
-    ran_p_weak = ran_res.p_weak if ran_res is not None else 0.0
-
-    single_deficit_detected = (
-        pa_p_weak >= SINGLE_DEFICIT_THRESHOLD
-        or ran_p_weak >= SINGLE_DEFICIT_THRESHOLD
-    )
-
-    # If a clear PA or RAN deficit is present but composite score is "low",
-    # bump to at least "moderate".
-    if single_deficit_detected and category == "low":
-        category = "moderate"
-        risk_score = max(risk_score, config.RISK_SCORE_MODERATE + 0.01)
-    # ------------------------------------------------------------------
+    if pa_label == "weak" and ran_label == "weak":
+        subtype = "Double_deficit"
+    elif pa_label == "weak" and ran_label != "weak":
+        subtype = "PA_deficit"
+    elif pa_label != "weak" and ran_label == "weak":
+        subtype = "RAN_deficit"
+    elif or_label == "weak" and pa_label != "weak" and ran_label != "weak":
+        subtype = "Visual_primary"
+    else:
+        # If it's low risk entirely, subtype is None
+        if category == "low":
+            subtype = "None"
+        else:
+            subtype = "Mixed_or_uncertain"
 
     # 6) Confidence from entropy
     avg_entropy = (
@@ -151,6 +193,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         risk_category=category,
         risk_score=risk_score,
         confidence=confidence,
+        subtype=subtype,
         modules=module_results,
         explanation=explanation,
     )

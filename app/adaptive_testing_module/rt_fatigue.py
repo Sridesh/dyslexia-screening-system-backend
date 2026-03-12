@@ -85,11 +85,13 @@ def update_module_rt_stats(
 
 # app/ef_ads/rt_fatigue.py (append)
 
-def compute_fatigue_factor(total_time_seconds: float) -> float:
+def compute_fatigue_slip_penalty(total_time_seconds: float) -> float:
     """
-    Compute a multiplicative fatigue factor based on total test time.
+    Compute an additive penalty applied to the child's slipping parameter
+    ('d' in the 4PL IRT model) based on the test time elapsed.
 
-    The factor decreases linearly with time, bounded below by MIN_FATIGUE_FACTOR.
+    The slipping parameter (probability of making a careless mistake despite knowing
+    the answer) increases linearly with test duration, capped at MAX_SLIP_PENALTY.
 
     Parameters
     ----------
@@ -97,11 +99,11 @@ def compute_fatigue_factor(total_time_seconds: float) -> float:
 
     Returns
     -------
-    fatigue_factor in [MIN_FATIGUE_FACTOR, 1.0]
+    fatigue_slip_penalty float bound in [0.0, MAX_SLIP_PENALTY]
     """
     minutes = total_time_seconds / 60.0
-    raw_factor = 1.0 - config.FATIGUE_SLOPE * minutes
-    return max(config.MIN_FATIGUE_FACTOR, min(1.0, raw_factor))
+    raw_penalty = config.FATIGUE_SLIP_RATE_PER_MIN * minutes
+    return min(config.MAX_SLIP_PENALTY, max(0.0, raw_penalty))
 
 # app/ef_ads/rt_fatigue.py (append)
 

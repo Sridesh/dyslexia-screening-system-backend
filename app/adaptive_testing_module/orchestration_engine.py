@@ -131,6 +131,7 @@ def process_response(
         module_id=module_id,
         item_difficulty=item.difficulty,
         is_correct=is_correct,
+        total_time_seconds=session.total_time_seconds,
     )
 
     # 3) RT stats update

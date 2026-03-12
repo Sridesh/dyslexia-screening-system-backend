@@ -55,6 +55,7 @@ def update_theta_posterior_for_item(
     module_id: str,
     item_difficulty: float,
     is_correct: bool,
+    total_time_seconds: float = 0.0,
 ) -> List[float]:
     """
     Update the posterior over theta for a single item response in a given module.
@@ -72,7 +73,10 @@ def update_theta_posterior_for_item(
     """
     a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
     c = config.ITEM_GUESSING.get(module_id, 0.0)
-    d = config.ITEM_SLIPPING.get(module_id, 0.0)
+    d_base = config.ITEM_SLIPPING.get(module_id, 0.0)
+    from . import rt_fatigue
+    slip_penalty = rt_fatigue.compute_fatigue_slip_penalty(total_time_seconds)
+    d = min(1.0, d_base + slip_penalty)
     theta_grid = config.THETA_GRID
 
     new_posterior: List[float] = []
@@ -174,6 +178,7 @@ def update_module_stats_for_item(
     module_id: str,
     item_difficulty: float,
     is_correct: bool,
+    total_time_seconds: float = 0.0,
 ) -> None:
     """
     In-place update of ModuleStats for a single item response in a module.
@@ -190,6 +195,7 @@ def update_module_stats_for_item(
         module_id=module_id,
         item_difficulty=item_difficulty,
         is_correct=is_correct,
+        total_time_seconds=total_time_seconds,
     )
     module_stats.theta_posterior = new_posterior
 
