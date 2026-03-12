@@ -111,11 +111,13 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     
     ran_res = module_results.get("ran")
     ran_rt = ran_res.avg_rt if ran_res and ran_res.num_items > 0 else 5.0
+    
+    ml_type = getattr(config, "ML_MODEL_TYPE", "random_forest")
 
-    if getattr(config, "ML_MODEL_TYPE", "logistic_regression") == "random_forest":
+    if ml_type == "random_forest":
         # Route to serialized ensemble model
         risk_score = predict_risk_rf(pa_theta, ran_theta, or_theta, ran_rt)
-    else:
+    elif ml_type == "logistic_regression":
         # Route to explicit mathematical logistic regression
         w_pa         = -1.6543
         w_ran        = -0.4828
@@ -130,6 +132,20 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
             risk_score = 1.0 / (1.0 + math.exp(-logit))
         except OverflowError:
             risk_score = 0.0 if logit < 0 else 1.0
+    else:
+        # Route to original deterministic rule-based logic (Smart fallback)
+        base_score = 0.0
+        for m_id, mc in module_results.items():
+            w = config.MODULE_WEIGHTS.get(m_id, 0.0)
+            base_score += w * mc.p_weak
+            
+        rt_adjustment = 0.0
+        if ran_res is not None:
+            # If RAN is slow but correct, penalize risk manually (Smart Rule)
+            if ran_res.slow_correct_ratio > 0.5 and ran_res.label != "weak":
+                rt_adjustment += 0.10  # modest penalty
+                
+        risk_score = max(0.0, min(1.0, base_score + rt_adjustment))
 
     # 3) Map to Category
     if risk_score >= config.RISK_SCORE_HIGH:

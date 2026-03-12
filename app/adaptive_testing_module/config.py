@@ -140,13 +140,13 @@ MAX_ITEMS_TOTAL: int = 20
 P_CONFIDENT: float = 0.75
 ENTROPY_THRESHOLD: float = 0.70
 MIN_INFO_GAIN: float = 0.01
-RISK_SCORE_HIGH: float = 0.50
-RISK_SCORE_MODERATE: float = 0.35
-
+RISK_SCORE_HIGH: float = 0.56
+RISK_SCORE_MODERATE: float = 0.54
 # -------------------------------------------------
 # ML Classifier Selection
 # -------------------------------------------------
-# "logistic_regression" (transparent math formula) or
+# "rule_based" (original deterministic logic),
+# "logistic_regression" (linear mathematical formula), or
 # "random_forest" (pre-trained serialized ensemble)
 ML_MODEL_TYPE: str = "random_forest"
 
