@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import {
   Box,
   Typography,
@@ -31,16 +32,20 @@ import { getChild, getTests } from "../api";
 import type { Child, Test } from "../types";
 import RiskChip from "../components/RiskChip";
 
-const InfoPill: React.FC<{ icon: React.ReactNode; label: string; value: string }> = ({
-  icon,
-  label,
-  value,
-}) => (
+const InfoPill: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}> = ({ icon, label, value }) => (
   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
     <Box sx={{ color: "primary.main" }}>{icon}</Box>
     <Box>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="body2" fontWeight={600}>{value}</Typography>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="body2" fontWeight={600}>
+        {value}
+      </Typography>
     </Box>
   </Box>
 );
@@ -48,7 +53,7 @@ const InfoPill: React.FC<{ icon: React.ReactNode; label: string; value: string }
 const calcAge = (dob?: string | null) => {
   if (!dob) return "—";
   const age = Math.floor(
-    (Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000)
+    (Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 3600 * 1000),
   );
   return `${age} years old`;
 };
@@ -82,7 +87,7 @@ const ChildDetail: React.FC = () => {
   const sortedTests = [...tests].sort(
     (a, b) =>
       new Date(b.start_time ?? 0).getTime() -
-      new Date(a.start_time ?? 0).getTime()
+      new Date(a.start_time ?? 0).getTime(),
   );
 
   if (loading) {
@@ -129,20 +134,20 @@ const ChildDetail: React.FC = () => {
                 {child.name ?? `Child #${child.id}`}
               </Typography>
               {child.notes && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
                   {child.notes}
                 </Typography>
               )}
-              <Box
-                sx={{ display: "flex", gap: 3, mt: 2, flexWrap: "wrap" }}
-              >
+              <Box sx={{ display: "flex", gap: 3, mt: 2, flexWrap: "wrap" }}>
                 <InfoPill
                   icon={<CalIcon fontSize="small" />}
                   label="Date of Birth"
                   value={
-                    child.dob
-                      ? new Date(child.dob).toLocaleDateString()
-                      : "—"
+                    child.dob ? new Date(child.dob).toLocaleDateString() : "—"
                   }
                 />
                 <InfoPill
@@ -233,8 +238,8 @@ const ChildDetail: React.FC = () => {
                             test.status === "completed"
                               ? "success"
                               : test.status === "in_progress"
-                              ? "info"
-                              : "default"
+                                ? "info"
+                                : "default"
                           }
                         />
                       </TableCell>
