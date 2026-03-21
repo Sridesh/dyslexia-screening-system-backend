@@ -18,7 +18,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router";
 import { startAdaptiveTest, submitResponse } from "../api";
-import type { AdaptiveItem, ItemOption } from "../types";
+import type { AdaptiveItem } from "../types";
 
 type Phase = "loading" | "answering" | "completed" | "error";
 
@@ -42,12 +42,14 @@ const TestSession: React.FC = () => {
   const [testId, setTestId] = useState<number | null>(null);
   const [currentItem, setCurrentItem] = useState<AdaptiveItem | null>(null);
   const [itemCount, setItemCount] = useState(0);
+  const [roundNumber, setRoundNumber] = useState(1);
   const [timeLeft, setTimeLeft] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Track response time
+  const itemShownAt = useRef<string>(new Date().toISOString());
   const itemStartTime = useRef<number>(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -61,6 +63,7 @@ const TestSession: React.FC = () => {
   const startItemTimer = useCallback((maxSeconds: number) => {
     clearTimer();
     setTimeLeft(maxSeconds);
+    itemShownAt.current = new Date().toISOString();
     itemStartTime.current = Date.now();
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -83,6 +86,7 @@ const TestSession: React.FC = () => {
         if (result.first_item) {
           setCurrentItem(result.first_item);
           setItemCount(1);
+          if (result.round_number) setRoundNumber(result.round_number);
           setPhase("answering");
           startItemTimer(result.first_item.max_time_seconds ?? 30);
         } else {
@@ -104,6 +108,7 @@ const TestSession: React.FC = () => {
 
     const rt = (Date.now() - itemStartTime.current) / 1000;
     const isCorrect = optionId === currentItem.correct_option;
+    const submittedAt = new Date().toISOString();
 
     setSubmitting(true);
     try {
@@ -112,24 +117,32 @@ const TestSession: React.FC = () => {
         is_correct: isCorrect,
         response_time_s: rt,
         test_id: testId,
+        module: currentItem.module_id,
+        started_at: itemShownAt.current,
+        submitted_at: submittedAt,
       });
 
       // Small delay so selection feedback is visible
       await new Promise((r) => setTimeout(r, 500));
 
-      if (result.status === "completed" || result.status === "completed_fallback") {
+      if (
+        result.status === "completed" ||
+        result.status === "completed_fallback"
+      ) {
         setPhase("completed");
         setTimeout(() => navigate(`/tests/${testId}/results`), 1200);
       } else if (result.next_item) {
         setCurrentItem(result.next_item);
         setItemCount((c) => c + 1);
+        if (result.round_number) setRoundNumber(result.round_number);
         setSelectedAnswer(null);
         startItemTimer(result.next_item.max_time_seconds ?? 30);
       } else {
         setPhase("completed");
         setTimeout(() => navigate(`/tests/${testId}/results`), 1200);
       }
-    } catch {
+    } catch (error) {
+      console.error(error);
       setErrorMsg("Failed to submit response. Please try again.");
     } finally {
       setSubmitting(false);
@@ -138,14 +151,20 @@ const TestSession: React.FC = () => {
 
   // Auto-submit on timeout (treat as incorrect, max RT)
   useEffect(() => {
-    if (timeLeft === 0 && phase === "answering" && currentItem && !submitting && !selectedAnswer) {
+    if (
+      timeLeft === 0 &&
+      phase === "answering" &&
+      currentItem &&
+      !submitting &&
+      !selectedAnswer
+    ) {
       handleAnswer("__timeout__");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft]);
 
   // ─── Parse options ───────────────────────────────────────────────────────────
-  let options: ItemOption[] = [];
+  let options: string[] = [];
   if (currentItem?.options_json) {
     try {
       const parsed = JSON.parse(currentItem.options_json);
@@ -156,10 +175,10 @@ const TestSession: React.FC = () => {
   }
 
   const moduleLabel = currentItem
-    ? MODULE_LABELS[currentItem.module_id] ?? currentItem.module_id
+    ? (MODULE_LABELS[currentItem.module_id] ?? currentItem.module_id)
     : "";
   const moduleColor = currentItem
-    ? MODULE_COLORS[currentItem.module_id] ?? "#00796B"
+    ? (MODULE_COLORS[currentItem.module_id] ?? "#00796B")
     : "#00796B";
 
   const timerPct = currentItem
@@ -170,7 +189,15 @@ const TestSession: React.FC = () => {
 
   if (phase === "loading") {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 10, gap: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 10,
+          gap: 3,
+        }}
+      >
         <CircularProgress size={56} />
         <Typography variant="h6" color="text.secondary">
           Preparing adaptive test…
@@ -182,8 +209,13 @@ const TestSession: React.FC = () => {
   if (phase === "error") {
     return (
       <Box sx={{ maxWidth: 500, mx: "auto", mt: 6 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>
-        <Button variant="outlined" onClick={() => navigate(`/children/${childId}`)}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMsg}
+        </Alert>
+        <Button
+          variant="outlined"
+          onClick={() => navigate(`/children/${childId}`)}
+        >
           Go Back
         </Button>
       </Box>
@@ -192,14 +224,20 @@ const TestSession: React.FC = () => {
 
   if (phase === "completed") {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 10, gap: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 10,
+          gap: 3,
+        }}
+      >
         <CheckIcon sx={{ fontSize: 72, color: "success.main" }} />
         <Typography variant="h5" fontWeight={700}>
           Test Complete!
         </Typography>
-        <Typography color="text.secondary">
-          Loading results…
-        </Typography>
+        <Typography color="text.secondary">Loading results…</Typography>
         <CircularProgress size={32} />
       </Box>
     );
@@ -208,13 +246,20 @@ const TestSession: React.FC = () => {
   return (
     <Box sx={{ maxWidth: 680, mx: "auto" }}>
       {/* Header row */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
         <Chip
           label={moduleLabel}
           sx={{ bgcolor: moduleColor, color: "#fff", fontWeight: 700 }}
         />
-        <Typography variant="body2" color="text.secondary">
-          Item #{itemCount}
+        <Typography variant="body2" color="text.secondary" fontWeight={500}>
+          Round #{roundNumber} • Item #{itemCount}
         </Typography>
       </Box>
 
@@ -222,7 +267,10 @@ const TestSession: React.FC = () => {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <TimerIcon fontSize="small" color={timeLeft <= 5 ? "error" : "action"} />
+            <TimerIcon
+              fontSize="small"
+              color={timeLeft <= 5 ? "error" : "action"}
+            />
             <Typography
               variant="body2"
               color={timeLeft <= 5 ? "error.main" : "text.secondary"}
@@ -267,21 +315,25 @@ const TestSession: React.FC = () => {
 
       {/* Answer options */}
       {errorMsg && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMsg(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 2 }}
+          onClose={() => setErrorMsg(null)}
+        >
           {errorMsg}
         </Alert>
       )}
 
       <Grid container spacing={2}>
         {options.length > 0
-          ? options.map((opt) => {
-              const isSelected = selectedAnswer === opt.id;
+          ? options.map((opt, i) => {
+              const isSelected = selectedAnswer === opt;
               return (
-                <Grid key={opt.id} size={{ xs: 12, sm: 6 }}>
+                <Grid key={i} size={{ xs: 12, sm: 6 }}>
                   <Button
                     fullWidth
                     variant={isSelected ? "contained" : "outlined"}
-                    onClick={() => handleAnswer(opt.id)}
+                    onClick={() => handleAnswer(opt)}
                     disabled={submitting || selectedAnswer !== null}
                     sx={{
                       py: 2,
@@ -294,7 +346,7 @@ const TestSession: React.FC = () => {
                       "&:hover": { borderColor: "primary.main" },
                     }}
                   >
-                    {opt.text}
+                    {opt}
                   </Button>
                 </Grid>
               );
@@ -306,7 +358,9 @@ const TestSession: React.FC = () => {
                   fullWidth
                   variant="outlined"
                   color={idx === 0 ? "success" : "error"}
-                  onClick={() => handleAnswer(idx === 0 ? "correct" : "incorrect")}
+                  onClick={() =>
+                    handleAnswer(idx === 0 ? "correct" : "incorrect")
+                  }
                   disabled={submitting || selectedAnswer !== null}
                   sx={{ py: 2, fontSize: 16, borderRadius: 3 }}
                 >

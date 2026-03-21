@@ -39,6 +39,9 @@ export interface Test {
   total_time_s?: number | null;
   final_fatigue_level?: number | null;
   device_id?: string | null;
+  version?: string | null;
+  notes?: string | null;
+  session_state?: Record<string, unknown> | null;
   status?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
@@ -71,6 +74,7 @@ export interface AdaptiveItem {
 export interface StartTestResponse {
   test_id: number;
   first_item?: AdaptiveItem | null;
+  round_number?: number;
   message?: string;
   active?: boolean;
 }
@@ -80,6 +84,9 @@ export interface SubmitResponsePayload {
   is_correct: boolean;
   response_time_s: number;
   test_id: number;
+  module: string;
+  started_at: string; // ISO timestamp
+  submitted_at: string; // ISO timestamp
 }
 
 export interface RiskResult {
@@ -92,6 +99,7 @@ export interface RiskResult {
 export interface SubmitResponseResult {
   status: "in_progress" | "completed" | "completed_fallback";
   next_item?: AdaptiveItem | null;
+  round_number?: number;
   risk?: RiskResult | null;
 }
 
@@ -102,17 +110,16 @@ export interface SubmitResponseResult {
 export interface ModuleSummary {
   id: number;
   test_id?: number | null;
-  module_id?: string | null;
+  module?: string | null;
   num_items?: number | null;
-  num_correct?: number | null;
-  avg_rt_s?: number | null;
-  theta_mean?: number | null;
-  p_weak?: number | null;
-  p_strong?: number | null;
-  entropy?: number | null;
-  final_label?: string | null;
+  total_correct_count?: number | null;
+  avg_time_s?: number | null;
+  avg_switch_rt_s?: number | null;
+  p_weak_final?: number | null;
+  p_strong_final?: number | null;
+  entropy_final?: number | null;
+  risk_label?: string | null;
   slow_correct_ratio?: number | null;
-  rapid_guess_ratio?: number | null;
 }
 
 // ──────────────────────────────────────────────
@@ -122,8 +129,7 @@ export interface ModuleSummary {
 export interface TestXAI {
   id: number;
   test_id?: number | null;
-  subtype?: string | null;
-  explanation_json?: string | null; // JSON string
-  risk_score?: number | null;
-  confidence?: number | null;
+  method?: string | null;
+  payload_json?: string | null;
+  created_at?: string | null;
 }

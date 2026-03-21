@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 
 from app import crud, schemas, models
 from app.deps import deps
-from app.adaptive_testing_module import orchestration_engine, selection, config
+from app.adaptive_testing_module import orchestration_engine, selection, config, rt_fatigue
 from app.services import test_service, items as items_service, results as results_service
 
 router = APIRouter()
@@ -65,6 +65,7 @@ def create_and_start_test(request: StartTestRequest, db: Session = Depends(deps.
              
         return {
             "test_id": test.id,
+            "round_number": result.session.round_number,
             "first_item": item_to_response_dict(db_item)
         }
     else:
@@ -134,6 +135,16 @@ def submit_response_endpoint(
     if not responded_item_cand:
         raise HTTPException(status_code=400, detail="Invalid item_id submitted")
 
+    # Ensure timestamps are naive UTC (stripping TZ info if present from Pydantic)
+    # this avoids "TypeError: can't subtract offset-naive and offset-aware datetimes"
+    def make_naive(dt: Optional[datetime]):
+        if dt and dt.tzinfo:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+
+    item_started_at = make_naive(response.started_at)
+    item_submitted_at = make_naive(response.submitted_at)
+
     # 5. Process logic
     result = orchestration_engine.process_response(
         session=session,
@@ -141,7 +152,9 @@ def submit_response_endpoint(
         item=responded_item_cand,
         is_correct=response.is_correct,
         rt_seconds=response.response_time_s,
-        response_timestamp=datetime.utcnow(),
+        response_timestamp=item_submitted_at or datetime.utcnow(),
+        item_started_at=item_started_at,
+        item_submitted_at=item_submitted_at,
         item_pool=item_pool
     )
 
@@ -157,7 +170,7 @@ def submit_response_endpoint(
         test.end_time = datetime.utcnow()
         test.total_time_s = session.total_time_seconds
         test.total_items = sum(getattr(m, 'num_items', 0) for m in session.modules.values())
-        test.final_fatigue_level = config.MIN_FATIGUE_FACTOR
+        test.final_fatigue_level = rt_fatigue.compute_fatigue_slip_penalty(session.total_time_seconds)
         
         # Save Results via Service
         results_service.save_test_results(db, test, result.global_risk, session.modules)
@@ -165,7 +178,8 @@ def submit_response_endpoint(
         # Update Test row
         test.final_risk_label = result.global_risk.risk_category
         test.final_risk_score = result.global_risk.risk_score
-        test.final_risk_entropy = 1.0 - result.global_risk.confidence
+        test.final_risk_entropy = result.global_risk.avg_entropy
+        test.final_risk_label = result.global_risk.risk_category.capitalize()
         
         db.add(test)
         db.commit()
@@ -188,6 +202,7 @@ def submit_response_endpoint(
         next_db_item = next((it for it in all_items if it.id == result.next_item.id), None)
         return {
             "status": "in_progress",
+            "round_number": result.session.round_number,
             "next_item": item_to_response_dict(next_db_item)
         }
     else:

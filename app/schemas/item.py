@@ -6,8 +6,11 @@ class ItemBase(BaseModel):
     module: str
     difficulty: float
     max_time_s: Optional[float] = None
+    prompt_type: Optional[str] = None
     prompt_text: Optional[str] = None
     prompt_media: Optional[str] = None
+    correct_option: Optional[str] = None
+    options_json: Optional[str] = None
     is_active: bool = True
 
 class ItemCreate(ItemBase):

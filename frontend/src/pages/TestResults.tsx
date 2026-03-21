@@ -27,6 +27,7 @@ import {
   Print as PrintIcon,
   Speed as SpeedIcon,
   Psychology as BrainIcon,
+  BatteryAlert as FatigueIcon,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router";
 import { getTest, getModuleSummaries, getXai } from "../api";
@@ -49,7 +50,7 @@ const SUBTYPE_DESCRIPTIONS: Record<string, string> = {
   None: "No significant dyslexia indicators detected.",
 };
 
-const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null }> = ({ test, xai }) => {
+  const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null }> = ({ test, xai }) => {
   const risk = test.final_risk_label?.toLowerCase();
   const bgMap: Record<string, string> = {
     high: "#FFEBEE",
@@ -62,7 +63,13 @@ const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null }> = ({ test, xai 
     low: <CheckIcon sx={{ fontSize: 48, color: "success.main" }} />,
   };
 
-  const subtype = xai?.subtype;
+  let subtype: string | undefined;
+  if (xai?.payload_json) {
+    try {
+      const parsed = JSON.parse(xai.payload_json);
+      subtype = parsed.subtype;
+    } catch {}
+  }
 
   return (
     <Paper
@@ -113,9 +120,24 @@ const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null }> = ({ test, xai 
           <Typography component="span" variant="h6">%</Typography>
         </Typography>
         {test.final_risk_entropy !== null && test.final_risk_entropy !== undefined && (
-          <Typography variant="caption" color="text.secondary">
-            Confidence: {((1 - test.final_risk_entropy) * 100).toFixed(0)}%
-          </Typography>
+          <Box>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Confidence: {(() => {
+                // Option 1: Map Confidence to the dominant probability
+                const prob = test.final_risk_score || 0;
+                const dominantProb = Math.max(prob, 1 - prob);
+                
+                // Optional: Penalize slightly if entropy is very high (noisy data)
+                const ent = test.final_risk_entropy || 0;
+                const penalty = Math.max(0, ent - 0.4) * 0.2; // Only penalize if entropy > 0.4
+                
+                return ((dominantProb - penalty) * 100).toFixed(0);
+              })()}%
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              Uncertainty (Entropy): {test.final_risk_entropy.toFixed(2)}
+            </Typography>
+          </Box>
         )}
       </Box>
     </Paper>
@@ -179,11 +201,11 @@ const TestResults: React.FC = () => {
     p_strong: number;
     entropy: number;
     num_items: number;
-    avg_rt: number;
+    avg_time_s: number;
   }> = {};
-  if (xaiData?.explanation_json) {
+  if (xaiData?.payload_json) {
     try {
-      const parsed = JSON.parse(xaiData.explanation_json);
+      const parsed = JSON.parse(xaiData.payload_json);
       explanationModules = parsed?.modules ?? {};
     } catch {
       /* ignore */
@@ -192,8 +214,8 @@ const TestResults: React.FC = () => {
 
   const accuracy =
     moduleSummaries.length > 0
-      ? moduleSummaries.reduce((sum, m) => sum + (m.num_correct ?? 0), 0) /
-        Math.max(moduleSummaries.reduce((sum, m) => sum + (m.num_items ?? 0), 0), 1)
+      ? moduleSummaries.reduce((sum, m) => sum + (m.total_correct_count ?? 0), 0) /
+        Math.max(moduleSummaries.reduce((sum, m) => sum + (m.num_items ?? 0), 1))
       : null;
 
   return (
@@ -236,8 +258,14 @@ const TestResults: React.FC = () => {
             icon: <CheckIcon />,
             color: "#2E7D32",
           },
+          {
+            label: "Fatigue Penalty",
+            value: test.final_fatigue_level ? `+${(test.final_fatigue_level * 100).toFixed(1)}%` : "0%",
+            icon: <FatigueIcon />,
+            color: test.final_fatigue_level && test.final_fatigue_level > 0.05 ? "#D32F2F" : "#757575",
+          },
         ].map((stat) => (
-          <Grid key={stat.label} size={{ xs: 12, sm: 4 }}>
+          <Grid key={stat.label} size={{ xs: 12, sm: 3 }}>
             <Card>
               <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <Box
@@ -277,23 +305,39 @@ const TestResults: React.FC = () => {
             moduleSummaries.map((m) => (
               <Box key={m.id} sx={{ mb: 3 }}>
                 <ModuleBarChart
-                  moduleId={m.module_id ?? ""}
-                  label={MODULE_LABELS[m.module_id ?? ""] ?? m.module_id ?? "Unknown"}
-                  pWeak={m.p_weak ?? 0}
-                  pStrong={m.p_strong ?? 0}
-                  entropy={m.entropy ?? undefined}
+                  moduleId={m.module ?? ""}
+                  label={MODULE_LABELS[m.module ?? ""] ?? m.module ?? "Unknown"}
+                  pWeak={m.p_weak_final ?? 0}
+                  pStrong={m.p_strong_final ?? 0}
+                  entropy={m.entropy_final ?? undefined}
                 />
                 <Grid container spacing={2} sx={{ mt: 0.5, pl: 0 }}>
                   {[
                     { label: "Items", value: m.num_items ?? "—" },
-                    { label: "Correct", value: m.num_correct ?? "—" },
-                    { label: "Avg RT", value: m.avg_rt_s ? `${m.avg_rt_s.toFixed(1)}s` : "—" },
-                    { label: "Label", value: m.final_label ?? "uncertain" },
+                    { label: "Correct", value: m.total_correct_count ?? "—" },
+                    { label: "Avg RT", value: m.avg_time_s ? `${m.avg_time_s.toFixed(1)}s` : "—" },
+                    { 
+                      label: "Adaptation", 
+                      value: m.avg_switch_rt_s ? `${m.avg_switch_rt_s.toFixed(1)}s` : "0s" 
+                    },
+                    {
+                      label: "Compensated",
+                      value: m.slow_correct_ratio !== undefined && m.slow_correct_ratio !== null ? `${(m.slow_correct_ratio * 100).toFixed(0)}%` : "—"
+                    },
+                    { label: "Label", value: m.risk_label ?? "uncertain" },
                   ].map((stat) => (
-                    <Grid key={stat.label} size={{ xs: 6, sm: 3 }}>
+                    <Grid key={stat.label} size={{ xs: 6, sm: 2 }}>
                       <Box>
-                        <Typography variant="caption" color="text.secondary">{stat.label}</Typography>
-                        <Typography variant="body2" fontWeight={600}>{stat.value}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {stat.label}
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight={600}
+                          sx={{ textTransform: stat.label === "Label" ? "capitalize" : "none" }}
+                        >
+                          {stat.value}
+                        </Typography>
                       </Box>
                     </Grid>
                   ))}
@@ -365,11 +409,17 @@ const TestResults: React.FC = () => {
               How certain the system is in this classification
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Tooltip title={`Entropy: ${test.final_risk_entropy.toFixed(3)}`}>
+              <Tooltip title={`Entropy Score: ${test.final_risk_entropy.toFixed(3)} (Higher = More Uncertain)`}>
                 <Box sx={{ flex: 1 }}>
                   <LinearProgress
                     variant="determinate"
-                    value={(1 - test.final_risk_entropy) * 100}
+                    value={(() => {
+                      const prob = test.final_risk_score || 0;
+                      const dominantProb = Math.max(prob, 1 - prob);
+                      const ent = test.final_risk_entropy || 0;
+                      const penalty = Math.max(0, ent - 0.4) * 0.2;
+                      return (dominantProb - penalty) * 100;
+                    })()}
                     sx={{
                       height: 14,
                       borderRadius: 7,
@@ -379,7 +429,13 @@ const TestResults: React.FC = () => {
                 </Box>
               </Tooltip>
               <Typography variant="body1" fontWeight={700}>
-                {((1 - test.final_risk_entropy) * 100).toFixed(0)}%
+                {(() => {
+                  const prob = test.final_risk_score || 0;
+                  const dominantProb = Math.max(prob, 1 - prob);
+                  const ent = test.final_risk_entropy || 0;
+                  const penalty = Math.max(0, ent - 0.4) * 0.2;
+                  return ((dominantProb - penalty) * 100).toFixed(0);
+                })()}%
               </Typography>
             </Box>
           </CardContent>

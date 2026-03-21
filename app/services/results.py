@@ -70,6 +70,8 @@ def save_test_results(
             total_correct_count=mod_stats.correct,
             slow_correct_count=mod_stats.slow_correct,
             slow_correct_ratio=mod_stats.slow_correct / mod_stats.correct if mod_stats.correct > 0 else 0.0,
+            avg_switch_rt_s=mod_stats.sum_switch_rt / mod_stats.switch_count if mod_stats.switch_count > 0 else 0.0,
+            switch_count=mod_stats.switch_count,
             created_at=datetime.utcnow()
         )
         db.add(summary)

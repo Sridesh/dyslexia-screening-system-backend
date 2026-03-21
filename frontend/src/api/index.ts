@@ -55,6 +55,7 @@ export const getTests = async (childId?: number): Promise<Test[]> => {
 
 export const getTest = async (testId: number): Promise<Test> => {
   const { data } = await api.get<Test>(`/tests/${testId}`);
+  console.log("getTest", data);
   return data;
 };
 
@@ -77,6 +78,7 @@ export const submitResponse = async (
   testId: number,
   payload: SubmitResponsePayload,
 ): Promise<SubmitResponseResult> => {
+  console.log("payload", payload);
   const { data } = await api.post<SubmitResponseResult>(
     `/adaptive/${testId}/responses`,
     payload,
@@ -91,9 +93,13 @@ export const submitResponse = async (
 export const getModuleSummaries = async (
   testId: number,
 ): Promise<ModuleSummary[]> => {
-  const { data } = await api.get<ModuleSummary[]>("/module-summaries/", {
-    params: { test_id: testId },
-  });
+  const { data } = await api.get<ModuleSummary[]>(
+    `/module-summaries/test/${testId}`,
+  );
+  console.log("getXai", data);
+
+  console.log("getModuleSummaries", data);
+
   return data;
 };
 
@@ -102,9 +108,7 @@ export const getModuleSummaries = async (
 // ──────────────────────────────────────────────
 
 export const getXai = async (testId: number): Promise<TestXAI[]> => {
-  const { data } = await api.get<TestXAI[]>("/xai/", {
-    params: { test_id: testId },
-  });
+  const { data } = await api.get<TestXAI[]>(`/xai/test/${testId}`);
   return data;
 };
 

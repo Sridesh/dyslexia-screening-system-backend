@@ -77,6 +77,7 @@ class GlobalRiskResult:
     risk_category: Literal["high", "moderate", "low"]
     risk_score: float
     confidence: float
+    avg_entropy: float  # Raw statistical uncertainty
     subtype: str
     modules: Dict[str, ModuleClassification]
     explanation: Dict
@@ -180,12 +181,17 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         else:
             subtype = "Mixed_or_uncertain"
 
-    # 6) Confidence from entropy
+    # 6) Confidence & Entropy
     avg_entropy = (
         sum(m.entropy for m in session.modules.values())
         / max(len(session.modules), 1)
     )
-    confidence = max(0.0, min(1.0, 1.0 - avg_entropy))
+    
+    # Option 1: Confidence based on the probability of the chosen outcome
+    dominant_prob = max(risk_score, 1.0 - risk_score)
+    # Modest penalty only if entropy is high (>0.4)
+    entropy_penalty = max(0, avg_entropy - 0.4) * 0.2
+    confidence = max(0.0, min(1.0, dominant_prob - entropy_penalty))
 
     explanation = build_explanation_object(category, risk_score, confidence, module_results)
 
@@ -193,6 +199,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         risk_category=category,
         risk_score=risk_score,
         confidence=confidence,
+        avg_entropy=avg_entropy,
         subtype=subtype,
         modules=module_results,
         explanation=explanation,

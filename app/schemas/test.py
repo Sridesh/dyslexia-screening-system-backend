@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 # Forward references
 # from .test_item_log import TestItemLog
@@ -21,7 +21,7 @@ class TestBase(BaseModel):
     device_id: Optional[str] = None
     version: Optional[str] = None
     notes: Optional[str] = None
-    session_state: Optional[str] = None
+    session_state: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
 
 class TestCreate(TestBase):
