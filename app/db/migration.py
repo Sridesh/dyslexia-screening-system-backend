@@ -119,6 +119,8 @@ def migrate_db():
                 "slow_correct_count": "INTEGER",
                 "total_correct_count": "INTEGER",
                 "slow_correct_ratio": "FLOAT",
+                "rapid_guess_count": "INTEGER",
+                "rapid_guess_ratio": "FLOAT",
                 "avg_switch_rt_s": "FLOAT",
                 "switch_count": "INTEGER",
                 "first_round_seen": "INTEGER",

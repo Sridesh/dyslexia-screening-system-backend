@@ -120,6 +120,7 @@ export interface ModuleSummary {
   entropy_final?: number | null;
   risk_label?: string | null;
   slow_correct_ratio?: number | null;
+  rapid_guess_ratio?: number | null;
 }
 
 // ──────────────────────────────────────────────
@@ -131,5 +132,35 @@ export interface TestXAI {
   test_id?: number | null;
   method?: string | null;
   payload_json?: string | null;
+  created_at?: string | null;
+}
+
+// ──────────────────────────────────────────────
+// TestItemLog
+// ──────────────────────────────────────────────
+
+export interface TestItemLog {
+  id: number;
+  test_id: number;
+  item_id: number;
+  round_number?: number | null;
+  within_round_idx?: number | null;
+  global_index?: number | null;
+  module: string;
+  difficulty?: number | null;
+  response?: string | null;
+  is_correct?: boolean | null;
+  response_time_s?: number | null;
+  started_at?: string | null;
+  submitted_at?: string | null;
+  is_switch_question: boolean;
+  was_slow_correct: boolean;
+  fatigue_factor_used?: number | null;
+  p_module_weak_before?: number | null;
+  p_module_strong_before?: number | null;
+  p_module_weak_after?: number | null;
+  p_module_strong_after?: number | null;
+  p_risk_atrisk_before?: number | null;
+  p_risk_atrisk_after?: number | null;
   created_at?: string | null;
 }

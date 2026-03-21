@@ -30,8 +30,8 @@ import {
   BatteryAlert as FatigueIcon,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router";
-import { getTest, getModuleSummaries, getXai } from "../api";
-import type { Test, ModuleSummary, TestXAI } from "../types";
+import { getTest, getModuleSummaries, getXai, getTestItemLogs } from "../api";
+import type { Test, ModuleSummary, TestXAI, TestItemLog } from "../types";
 import RiskChip from "../components/RiskChip";
 import ModuleBarChart from "../components/ModuleBarChart";
 
@@ -151,6 +151,7 @@ const TestResults: React.FC = () => {
   const [test, setTest] = useState<Test | null>(null);
   const [moduleSummaries, setModuleSummaries] = useState<ModuleSummary[]>([]);
   const [xaiData, setXaiData] = useState<TestXAI | null>(null);
+  const [itemLogs, setItemLogs] = useState<TestItemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,14 +159,16 @@ const TestResults: React.FC = () => {
     if (!testId) return;
     (async () => {
       try {
-        const [t, ms, xai] = await Promise.all([
+        const [t, ms, xai, logs] = await Promise.all([
           getTest(Number(testId)),
           getModuleSummaries(Number(testId)),
           getXai(Number(testId)),
+          getTestItemLogs(Number(testId)),
         ]);
         setTest(t);
         setModuleSummaries(ms);
         setXaiData(xai?.[0] ?? null);
+        setItemLogs(logs.sort((a, b) => (a.global_index ?? 0) - (b.global_index ?? 0)));
       } catch {
         setError("Failed to load test results.");
       } finally {
@@ -324,6 +327,10 @@ const TestResults: React.FC = () => {
                       label: "Compensated",
                       value: m.slow_correct_ratio !== undefined && m.slow_correct_ratio !== null ? `${(m.slow_correct_ratio * 100).toFixed(0)}%` : "—"
                     },
+                    {
+                      label: "Frustration (Guessed)",
+                      value: m.rapid_guess_ratio !== undefined && m.rapid_guess_ratio !== null ? `${(m.rapid_guess_ratio * 100).toFixed(0)}%` : "—"
+                    },
                     { label: "Label", value: m.risk_label ?? "uncertain" },
                   ].map((stat) => (
                     <Grid key={stat.label} size={{ xs: 6, sm: 2 }}>
@@ -437,6 +444,93 @@ const TestResults: React.FC = () => {
                   return ((dominantProb - penalty) * 100).toFixed(0);
                 })()}%
               </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assessment Trajectory Chart */}
+      {itemLogs.length > 0 && (
+        <Card sx={{ mt: 3, mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Assessment Trajectory
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Item-by-item Bayesian probability of the child being "At-Risk" in the active cognitive module.
+            </Typography>
+            
+            <Box sx={{ width: "100%", height: 300, position: "relative", mt: 2, overflowX: "auto" }}>
+              <svg width={Math.max(itemLogs.length * 40 + 60, 600)} height="300" viewBox={`0 0 ${Math.max(itemLogs.length * 40 + 60, 600)} 300`}>
+                {/* Background Grid */}
+                {[0, 25, 50, 75, 100].map((yVal) => (
+                  <g key={`grid-${yVal}`}>
+                    <line x1="40" y1={280 - (yVal * 2.5)} x2="100%" y2={280 - (yVal * 2.5)} stroke="#e0e0e0" strokeDasharray="4 4" />
+                    <text x="5" y={285 - (yVal * 2.5)} fill="#9e9e9e" fontSize="12">{yVal}%</text>
+                  </g>
+                ))}
+                
+                {/* Axes */}
+                <line x1="40" y1="280" x2="100%" y2="280" stroke="#9e9e9e" />
+                <line x1="40" y1="30" x2="40" y2="280" stroke="#9e9e9e" />
+                
+                {/* Data Line and Points */}
+                {itemLogs.map((log, idx) => {
+                  const x2 = 40 + idx * 40;
+                  const y2 = 280 - ((log.p_module_weak_after || 0) * 250);
+                  
+                  // Color code by module
+                  const colors: Record<string, string> = {
+                    "phonemic_awareness": "#1976D2",
+                    "ran": "#D32F2F",
+                    "object_recognition": "#388E3C"
+                  };
+                  const strokeColor = colors[log.module] || "#757575";
+
+                  return (
+                    <g key={`line-group-${log.id}`}>
+                      {/* Only link points if they are from the same module (otherwise it visually jumps) */}
+                      {idx > 0 && itemLogs[idx-1].module === log.module && (
+                        <line x1={40 + (idx - 1)*40} y1={280 - ((itemLogs[idx-1].p_module_weak_after || 0)*250)} x2={x2} y2={y2} stroke={strokeColor} strokeWidth="3" opacity="0.6" />
+                      )}
+                      {/* Dots */}
+                      <circle 
+                        cx={x2} 
+                        cy={y2} 
+                        r={log.is_correct ? 5 : 7} 
+                        fill={log.is_correct ? "white" : strokeColor} 
+                        stroke={strokeColor} 
+                        strokeWidth="3" 
+                      />
+                      {/* X-axis labels (Item Number) */}
+                      <text x={x2 - 5} y="295" fill="#757575" fontSize="11">{idx + 1}</text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 3, mt: 2, justifyContent: 'center' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid #757575', bgcolor: 'white' }} />
+                <Typography variant="caption" color="text.secondary">Correct Answer</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#757575' }} />
+                <Typography variant="caption" color="text.secondary">Incorrect Answer</Typography>
+              </Box>
+              {Object.entries(MODULE_LABELS).map(([mod, label]) => {
+                 const colors: Record<string, string> = {
+                  "phonemic_awareness": "#1976D2",
+                  "ran": "#D32F2F",
+                  "object_recognition": "#388E3C"
+                };
+                return (
+                  <Box key={mod} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{ width: 16, height: 4, bgcolor: colors[mod] }} />
+                    <Typography variant="caption" color="text.secondary">{label}</Typography>
+                  </Box>
+                )
+              })}
             </Box>
           </CardContent>
         </Card>

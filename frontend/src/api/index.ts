@@ -8,6 +8,7 @@ import type {
   SubmitResponseResult,
   ModuleSummary,
   TestXAI,
+  TestItemLog,
 } from "../types";
 
 // ──────────────────────────────────────────────
@@ -109,6 +110,15 @@ export const getModuleSummaries = async (
 
 export const getXai = async (testId: number): Promise<TestXAI[]> => {
   const { data } = await api.get<TestXAI[]>(`/xai/test/${testId}`);
+  return data;
+};
+
+// ──────────────────────────────────────────────
+// Item Logs (Trajectory)
+// ──────────────────────────────────────────────
+
+export const getTestItemLogs = async (testId: number): Promise<TestItemLog[]> => {
+  const { data } = await api.get<TestItemLog[]>(`/logs/test/${testId}`);
   return data;
 };
 
