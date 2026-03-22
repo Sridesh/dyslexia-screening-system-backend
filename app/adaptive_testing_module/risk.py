@@ -81,6 +81,7 @@ class GlobalRiskResult:
     subtype: str
     modules: Dict[str, ModuleClassification]
     explanation: Dict
+    feature_contributions: Dict # Added for XAI
 
 # app/ef_ads/risk.py (append)
 
@@ -193,7 +194,23 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
     entropy_penalty = max(0, avg_entropy - 0.4) * 0.2
     confidence = max(0.0, min(1.0, dominant_prob - entropy_penalty))
 
+    # 7) Feature Contributions for XAI
+    feature_contributions = {
+        "phonemic_awareness": {"ability": pa_theta, "weight": "Significant"},
+        "ran_accuracy": {"ability": ran_theta, "weight": "Significant"},
+        "ran_speed": {"avg_rt": ran_rt, "weight": "Moderate-to-High"},
+        "object_recognition": {"ability": or_theta, "weight": "Low/Contextual"}
+    }
+
     explanation = build_explanation_object(category, risk_score, confidence, module_results)
+    
+    # Add clinical notes based on specific triggers
+    if ran_rt > 6.0:
+        explanation["global_notes"] = "Risk heavily influenced by slow RAN processing speed, a hallmark of dysfluent dyslexia."
+    elif pa_theta < -1.0:
+        explanation["global_notes"] = "Risk heavily influenced by low Phonemic Awareness scores, suggesting core phonological processing deficits."
+
+    explanation["feature_contributions"] = feature_contributions # Added for transparency
 
     return GlobalRiskResult(
         risk_category=category,
@@ -203,6 +220,7 @@ def compute_global_risk(session: SessionState) -> GlobalRiskResult:
         subtype=subtype,
         modules=module_results,
         explanation=explanation,
+        feature_contributions=feature_contributions, # Added
     )
 
 
