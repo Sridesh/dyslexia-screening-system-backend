@@ -23,6 +23,9 @@ class TestModuleSum(Base):
     total_correct_count = Column(Integer, nullable=True)
     slow_correct_ratio = Column(Float, nullable=True)
 
+    rapid_guess_count = Column(Integer, nullable=True)
+    rapid_guess_ratio = Column(Float, nullable=True)
+
     avg_switch_rt_s = Column(Float, nullable=True)
     switch_count = Column(Integer, nullable=True)
 

@@ -38,6 +38,10 @@ class ModuleStats:
     correct: int = 0
     rapid_guess: int = 0
 
+    # Switch latency tracking (adaptation time)
+    sum_switch_rt: float = 0.0
+    switch_count: int = 0
+
     # Optional: last start time for module, to derive switch RTs
     last_started_at: Optional[datetime] = None
 
@@ -58,7 +62,11 @@ class SessionState:
     # Global flow control
     round_number: int = 1
     current_module_index: int = 0
+    items_in_current_block: int = 0
     stopped: bool = False
+
+    # Track when the last item in the entire session was submitted
+    last_item_submitted_at: Optional[datetime] = None
 
     # Mapping from module_id to ModuleStats
     modules: Dict[str, ModuleStats] = field(default_factory=dict)
@@ -105,7 +113,9 @@ class SessionState:
             total_time_seconds=0.0,
             round_number=1,
             current_module_index=0,
+            items_in_current_block=0,
             stopped=False,
+            last_item_submitted_at=None,
             modules=modules,
         )
 
@@ -130,6 +140,8 @@ class SessionState:
                 "slow_correct": stats.slow_correct,
                 "correct": stats.correct,
                 "rapid_guess": stats.rapid_guess,
+                "sum_switch_rt": stats.sum_switch_rt,
+                "switch_count": stats.switch_count,
                 "last_started_at": (
                     stats.last_started_at.isoformat()
                     if stats.last_started_at
@@ -144,7 +156,13 @@ class SessionState:
             "total_time_seconds": self.total_time_seconds,
             "round_number": self.round_number,
             "current_module_index": self.current_module_index,
+            "items_in_current_block": self.items_in_current_block,
             "stopped": self.stopped,
+            "last_item_submitted_at": (
+                self.last_item_submitted_at.isoformat()
+                if self.last_item_submitted_at
+                else None
+            ),
             "modules": modules_snapshot,
         }
 
@@ -171,6 +189,8 @@ class SessionState:
                 slow_correct=stats_dict["slow_correct"],
                 correct=stats_dict["correct"],
                 rapid_guess=stats_dict["rapid_guess"],
+                sum_switch_rt=stats_dict.get("sum_switch_rt", 0.0),
+                switch_count=stats_dict.get("switch_count", 0),
                 last_started_at=last_started_at,
             )
 
@@ -179,8 +199,14 @@ class SessionState:
             started_at=datetime.fromisoformat(snapshot["started_at"]),
             last_update_at=datetime.fromisoformat(snapshot["last_update_at"]),
             total_time_seconds=snapshot["total_time_seconds"],
-            round_number=snapshot["round_number"],
+            round_number=snapshot.get("round_number", 1),
             current_module_index=snapshot["current_module_index"],
+            items_in_current_block=snapshot.get("items_in_current_block", 0),
             stopped=snapshot["stopped"],
+            last_item_submitted_at=(
+                datetime.fromisoformat(snapshot["last_item_submitted_at"])
+                if snapshot.get("last_item_submitted_at")
+                else None
+            ),
             modules=modules,
         )

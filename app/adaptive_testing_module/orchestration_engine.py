@@ -57,10 +57,10 @@ def initialise_session(
 
 def choose_next_module(session: SessionState) -> Optional[str]:
     """
-    Decide which module to administer next.
+    Decide which module to administer next (Round-Robin).
 
     Strategy:
-    - Iterate modules in a fixed cyclic order starting from current_module_index.
+    - Iterate modules cyclically in blocks of 2 items.
     - Skip modules that are already 'settled'.
     - If no unsettled modules remain, return None.
     """
@@ -69,8 +69,15 @@ def choose_next_module(session: SessionState) -> Optional[str]:
     if n == 0:
         return None
 
-    # Start search from the next module index (cyclic)
     start_idx = session.current_module_index
+
+    # Force switch if block size reached
+    if session.items_in_current_block >= 2:
+        start_idx = (start_idx + 1) % n
+        session.items_in_current_block = 0
+        if start_idx == 0:
+            session.round_number += 1
+
     for offset in range(n):
         idx = (start_idx + offset) % n
         module_id = module_ids[idx]
@@ -79,8 +86,9 @@ def choose_next_module(session: SessionState) -> Optional[str]:
             continue
 
         if not stopping.is_module_settled(stats) and stats.items_remaining:
-            # Update current index and return chosen module
-            session.current_module_index = idx
+            if idx != session.current_module_index:
+                session.current_module_index = idx
+                session.items_in_current_block = 0
             return module_id
 
     # No unsettled modules with remaining items
@@ -104,7 +112,9 @@ def process_response(
     item: CandidateItem,
     is_correct: bool,
     rt_seconds: float,
-    response_timestamp: Optional[datetime],
+    response_timestamp: Optional[datetime] = None,
+    item_started_at: Optional[datetime] = None,
+    item_submitted_at: Optional[datetime] = None,
     item_pool: Dict[int, CandidateItem],
 ) -> ProcessResponseResult:
     """
@@ -142,9 +152,23 @@ def process_response(
         is_correct=is_correct,
     )
 
-    # 4) Remove item from remaining list
+    # 3.1) Switch latency calculation
+    # If this is a switch item (different from last item's module), record latency
+    if session.last_item_submitted_at and item_started_at:
+        # Check if this item is the start of a new module block
+        # In current 2-item block logic, session.items_in_current_block will be 0 
+        # for the first item of a module.
+        if session.items_in_current_block == 0:
+            latency = (item_started_at - session.last_item_submitted_at).total_seconds()
+            if latency > 0:
+                module_stats.sum_switch_rt += latency
+                module_stats.switch_count += 1
+
+    # 4) Remove item from remaining list and increment block counter
     if item.id in module_stats.items_remaining:
         module_stats.items_remaining.remove(item.id)
+    session.items_in_current_block += 1
+    session.last_item_submitted_at = item_submitted_at or now
 
     # 5) Check global stopping rules
     should_stop = stopping.should_stop_globally(session, item_pool=item_pool)
@@ -225,6 +249,8 @@ def start_new_test(
 
     # Set current_module_index to 0 initially
     session.current_module_index = 0
+    session.items_in_current_block = 0
+    session.round_number = 1
 
     first_module_id = choose_next_module(session)
     if first_module_id is None:

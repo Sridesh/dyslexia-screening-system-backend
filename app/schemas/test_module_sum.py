@@ -16,6 +16,8 @@ class TestModuleSumBase(BaseModel):
     slow_correct_count: Optional[int] = None
     total_correct_count: Optional[int] = None
     slow_correct_ratio: Optional[float] = None
+    rapid_guess_count: Optional[int] = None
+    rapid_guess_ratio: Optional[float] = None
     avg_switch_rt_s: Optional[float] = None
     switch_count: Optional[int] = None
     first_round_seen: Optional[int] = None
