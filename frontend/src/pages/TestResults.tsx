@@ -50,7 +50,7 @@ const SUBTYPE_DESCRIPTIONS: Record<string, string> = {
   None: "No significant dyslexia indicators detected.",
 };
 
-  const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null }> = ({ test, xai }) => {
+const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null; globalNotes?: string }> = ({ test, xai, globalNotes }) => {
   const risk = test.final_risk_label?.toLowerCase();
   const bgMap: Record<string, string> = {
     high: "#FFEBEE",
@@ -104,9 +104,23 @@ const SUBTYPE_DESCRIPTIONS: Record<string, string> = {
           />
         )}
         {subtype && SUBTYPE_DESCRIPTIONS[subtype] && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: globalNotes ? 1.5 : 0 }}>
             {SUBTYPE_DESCRIPTIONS[subtype]}
           </Typography>
+        )}
+        {globalNotes && (
+          <Box sx={{ 
+            mt: 1, 
+            p: 1.5, 
+            bgcolor: "rgba(255,255,255,0.6)", 
+            borderRadius: 2, 
+            border: "1px dashed",
+            borderColor: "rgba(0,0,0,0.1)"
+          }}>
+            <Typography variant="body2" sx={{ fontStyle: "italic", fontWeight: 500 }}>
+              💡 Clinical Summary: {globalNotes}
+            </Typography>
+          </Box>
         )}
       </Box>
       <Box sx={{ textAlign: "center" }}>
@@ -197,19 +211,16 @@ const TestResults: React.FC = () => {
   }
 
   // ── Parse XAI explanation JSON ──
-  let explanationModules: Record<string, {
-    label: string;
-    notes: string[];
-    p_weak: number;
-    p_strong: number;
-    entropy: number;
-    num_items: number;
-    avg_time_s: number;
-  }> = {};
+  let explanationModules: Record<string, any> = {};
+  let globalNotes: string | undefined;
+  let featureContributions: Record<string, any> | undefined;
+
   if (xaiData?.payload_json) {
     try {
       const parsed = JSON.parse(xaiData.payload_json);
       explanationModules = parsed?.modules ?? {};
+      globalNotes = parsed?.global_notes;
+      featureContributions = parsed?.feature_contributions;
     } catch {
       /* ignore */
     }
@@ -238,7 +249,7 @@ const TestResults: React.FC = () => {
       </Box>
 
       {/* Risk banner */}
-      <RiskBanner test={test} xai={xaiData} />
+      <RiskBanner test={test} xai={xaiData} globalNotes={globalNotes} />
 
       {/* Session summary cards */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
@@ -376,31 +387,86 @@ const TestResults: React.FC = () => {
       {Object.keys(explanationModules).length > 0 && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <InfoIcon color="primary" />
-              <Typography variant="h6">Clinical Explanation</Typography>
-            </Box>
-            <Divider sx={{ mb: 2 }} />
-            {Object.entries(explanationModules).map(([moduleId, data]) => (
-              <Box key={moduleId} sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-                  {MODULE_LABELS[moduleId] ?? moduleId}
-                </Typography>
-                <List dense disablePadding>
-                  {data.notes?.map((note, idx) => (
-                    <ListItem key={idx} disablePadding sx={{ mb: 0.5 }}>
-                      <ListItemIcon sx={{ minWidth: 32 }}>
-                        <InfoIcon fontSize="small" color="primary" />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={note}
-                        primaryTypographyProps={{ variant: "body2" }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            ))}
+            <Grid container spacing={4}>
+              <Grid item xs={12} md={7}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <InfoIcon color="primary" />
+                  <Typography variant="h6">Clinical Explanation</Typography>
+                </Box>
+                <Divider sx={{ mb: 2 }} />
+                {Object.entries(explanationModules).map(([moduleId, data]) => (
+                  <Box key={moduleId} sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+                      {MODULE_LABELS[moduleId] ?? moduleId}
+                    </Typography>
+                    <List dense disablePadding>
+                      {data.notes?.map((note: string, idx: number) => (
+                        <ListItem key={idx} disablePadding sx={{ mb: 0.5 }}>
+                          <ListItemIcon sx={{ minWidth: 32 }}>
+                            <InfoIcon fontSize="small" color="primary" />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={note}
+                            primaryTypographyProps={{ variant: "body2" }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                ))}
+              </Grid>
+
+              {/* Feature Drivers section */}
+              {featureContributions && (
+                <Grid item xs={12} md={5}>
+                  <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 3, height: "100%" }}>
+                    <Typography variant="subtitle2" fontWeight={800} color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
+                      Key Feature Drivers
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                      Relative impact on the final risk classification
+                    </Typography>
+                    
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                      {Object.entries(featureContributions).map(([key, data]: any) => {
+                        const weightColor = data.weight === "Significant" ? "error" : data.weight === "Moderate-to-High" ? "warning" : "info";
+                        return (
+                          <Paper key={key} variant="outlined" sx={{ p: 1.5, borderRadius: 2 }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.5 }}>
+                              <Typography variant="body2" fontWeight={700}>
+                                {key.replace(/_/g, " ").toUpperCase()}
+                              </Typography>
+                              <Chip 
+                                label={data.weight} 
+                                size="small" 
+                                color={weightColor} 
+                                variant="soft"
+                                sx={{ fontSize: "0.65rem", height: 20, fontWeight: 700 }} 
+                              />
+                            </Box>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                               <Typography variant="caption" color="text.secondary">
+                                 {data.ability !== undefined ? `Est. Ability: ${data.ability.toFixed(2)}` : `Avg Speed: ${data.avg_rt?.toFixed(1)}s`}
+                               </Typography>
+                               {/* Micro Sparkline or dot indicating direction */}
+                               <Box sx={{ 
+                                 width: 8, 
+                                 height: 8, 
+                                 borderRadius: "50%", 
+                                 bgcolor: (data.ability < -0.5 || data.avg_rt > 5.0) ? "error.main" : "success.main" 
+                               }} />
+                            </Box>
+                          </Paper>
+                        );
+                      })}
+                    </Box>
+                    <Alert severity="info" sx={{ mt: 3, "& .MuiAlert-message": { fontSize: "0.75rem" } }}>
+                      Weights are determined by the Random Forest classifier's interaction logic.
+                    </Alert>
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
           </CardContent>
         </Card>
       )}
