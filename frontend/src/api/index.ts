@@ -9,6 +9,7 @@ import type {
   ModuleSummary,
   TestXAI,
   TestItemLog,
+  InterventionPlan,
 } from "../types";
 
 // ──────────────────────────────────────────────
@@ -119,6 +120,15 @@ export const getXai = async (testId: number): Promise<TestXAI[]> => {
 
 export const getTestItemLogs = async (testId: number): Promise<TestItemLog[]> => {
   const { data } = await api.get<TestItemLog[]>(`/logs/test/${testId}`);
+  return data;
+};
+
+// ──────────────────────────────────────────────
+// Intervention Agent
+// ──────────────────────────────────────────────
+
+export const getInterventionPlan = async (testId: number): Promise<InterventionPlan> => {
+  const { data } = await api.get<InterventionPlan>(`/intervention/${testId}`);
   return data;
 };
 

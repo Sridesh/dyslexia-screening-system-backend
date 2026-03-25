@@ -164,3 +164,14 @@ export interface TestItemLog {
   p_risk_atrisk_after?: number | null;
   created_at?: string | null;
 }
+// ──────────────────────────────────────────────
+// Intervention Plan (RAG)
+// ──────────────────────────────────────────────
+
+export interface InterventionPlan {
+  test_id: number;
+  intervention_plan: {
+    source: string;
+    plan_markdown: string;
+  };
+}
