@@ -11,9 +11,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
 
+from app.core.config import settings
+
 # --- Configuration ---
-# User to replace this with their actual Gemini API Key
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyDwVpRMPFumuLVS4F_duxyGuzkBGD0m5JA")
+GEMINI_API_KEY = settings.GEMINI_API_KEY
 
 # Paths
 BASE_DIR = os.path.dirname(__file__)
