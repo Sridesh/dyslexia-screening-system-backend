@@ -1,0 +1,48 @@
+{
+  "General": "Early intervention is critical for children showing any risk of dyslexia. Consistent, multisensory learning approaches have proven most effective.",
+  "PA_deficit": {
+    "title": "Phonemic Awareness Deficit Interventions",
+    "description": "The child struggles to hear, identify, and manipulate phonemes (the smallest units of sound).",
+    "exercises": [
+      "Syllable Counting: Have the child clap out the number of syllables in familiar words (e.g., 'el-e-phant').",
+      "Rhyming Games: Use picture cards to match words that rhyme.",
+      "Phoneme Segmentation: Ask the child to say all the individual sounds in a word like 'cat' (/c/ /a/ /t/)."
+    ]
+  },
+  "RAN_deficit": {
+    "title": "Rapid Automatized Naming Deficit Interventions",
+    "description": "The child processes visual symbols slowly, leading to dysfluent and choppy reading.",
+    "exercises": [
+      "Speed Drills: Use flashcards with colors, numbers, or letters and practice naming them as fast as possible.",
+      "Repeated Reading: Have the child read the same short, familiar text multiple times to build fluency.",
+      "Visual Tracking: Use a finger or a tracking card to guide the eyes smoothly across the page to prevent losing place."
+    ]
+  },
+  "Double_deficit": {
+    "title": "Double Deficit Interventions (PA + RAN)",
+    "description": "The child shows significant deficits in both phonological processing and rapid naming speed.",
+    "exercises": [
+      "Orton-Gillingham Approach: Implement a highly structured, systematic, cumulative, and multisensory phonics approach.",
+      "Multisensory Spelling: Practice spelling words using sand trays, shaving cream, or textured letters.",
+      "Audio-Assisted Reading: Have the child listen to an audiobook while simultaneously tracking the text in a physical book."
+    ]
+  },
+  "Visual_primary": {
+    "title": "Visual Processing Interventions",
+    "description": "The child may reverse letters or struggle with the visual orientation of text.",
+    "exercises": [
+      "Letter Discrimination: Circle target letters embedded in a sea of similar-looking distractors (e.g., finding all 'b's among 'd's).",
+      "Spatial Puzzles: Engage in activities like Tangrams or block patterns.",
+      "Line Isolation: Use a reading ruler or slotted card to expose only one line of text at a time."
+    ]
+  },
+  "Mixed_or_uncertain": {
+    "title": "Mixed or Uncertain Profile Recommendations",
+    "description": "The screening shows a complex profile with indicators across multiple cognitive domains.",
+    "exercises": [
+      "Broad Support: Implement a balanced approach covering both phonics and fluency exercises.",
+      "Differentiated Instruction: Tailor tasks to the child's specific strengths while providing scaffolds for weaker areas.",
+      "Professional Consultation: A full diagnostic evaluation by a specialized educational psychologist is strongly recommended."
+    ]
+  }
+}
