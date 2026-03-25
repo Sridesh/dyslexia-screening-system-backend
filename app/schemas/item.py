@@ -5,6 +5,7 @@ from typing import Optional
 class ItemBase(BaseModel):
     module: str
     difficulty: float
+    discrimination: float = 1.0
     max_time_s: Optional[float] = None
     prompt_type: Optional[str] = None
     prompt_text: Optional[str] = None

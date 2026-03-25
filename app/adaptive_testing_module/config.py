@@ -110,8 +110,8 @@ MAX_TEST_TIME_MIN: float = 25.0
 # Confidence and entropy thresholds for module settlement
 # P_CONFIDENT: float = 0.75       # min P(weak) or P(strong) to call it settled
 # ENTROPY_THRESHOLD: float = 0.6  # lower entropy => higher certainty[web:509][web:512]
-P_CONFIDENT: float = 0.80       # min P(weak) or P(strong) to call it settled
-ENTROPY_THRESHOLD: float = 0.75  # lower entropy => higher certainty[web:509][web:512]
+P_CONFIDENT: float = 0.85       # min P(weak) or P(strong) to call it settled
+ENTROPY_THRESHOLD: float = 0.65  # lower entropy => higher certainty[web:509][web:512]
 
 # Minimum adjusted information gain; below this, items are considered not worth asking
 # MIN_INFO_GAIN: float = 0.01     # will be tuned later[web:509][web:515]
@@ -137,11 +137,11 @@ MODULE_WEIGHTS: Dict[str, float] = {
 # Risk thresholds on some abstract# Tuned values from systematic_tuning.py (J=0.660)
 MIN_ITEMS_PER_MODULE: int = 4
 MAX_ITEMS_TOTAL: int = 20
-P_CONFIDENT: float = 0.75
-ENTROPY_THRESHOLD: float = 0.70
+P_CONFIDENT: float = 0.85
+ENTROPY_THRESHOLD: float = 0.65
 MIN_INFO_GAIN: float = 0.01
-RISK_SCORE_HIGH: float = 0.56
-RISK_SCORE_MODERATE: float = 0.54
+RISK_SCORE_HIGH: float = 0.45
+RISK_SCORE_MODERATE: float = 0.32
 # -------------------------------------------------
 # ML Classifier Selection
 # -------------------------------------------------

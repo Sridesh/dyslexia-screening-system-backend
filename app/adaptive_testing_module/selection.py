@@ -34,6 +34,7 @@ class CandidateItem:
     id: int
     module_id: str
     difficulty: float
+    discrimination: float
     max_time_seconds: float
 
 # app/ef_ads/selection.py (append)
@@ -56,7 +57,7 @@ def expected_entropy_after_item(
     """
     theta_posterior = module_stats.theta_posterior
     theta_grid = config.THETA_GRID
-    a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
+    a = item.discrimination
     c = config.ITEM_GUESSING.get(module_id, 0.0)
     d_base = config.ITEM_SLIPPING.get(module_id, 0.0)
     slip_penalty = rt_fatigue.compute_fatigue_slip_penalty(total_time_seconds)
@@ -80,6 +81,7 @@ def expected_entropy_after_item(
             theta_posterior,
             module_id=module_id,
             item_difficulty=b,
+            item_discrimination=a,
             is_correct=outcome,
             total_time_seconds=total_time_seconds,
         )
@@ -91,6 +93,7 @@ def expected_entropy_after_item(
         theta_posterior,
         module_id=module_id,
         item_difficulty=b,
+        item_discrimination=a,
         is_correct=True,
         total_time_seconds=total_time_seconds,
     )
@@ -102,6 +105,7 @@ def expected_entropy_after_item(
         theta_posterior,
         module_id=module_id,
         item_difficulty=b,
+        item_discrimination=a,
         is_correct=False,
         total_time_seconds=total_time_seconds,
     )

@@ -33,7 +33,7 @@ PROFILES: List[SyntheticChild] = [
 
 def simulate_response(child: SyntheticChild, item: selection.CandidateItem) -> Tuple[bool, float]:
     theta = child.theta_by_module.get(item.module_id, 0.0)
-    a = config.ITEM_DISCRIMINATION.get(item.module_id, 1.0)
+    a = item.discrimination
     c = config.ITEM_GUESSING.get(item.module_id, 0.0)
     d = config.ITEM_SLIPPING.get(item.module_id, 0.0)
     b = item.difficulty
@@ -80,6 +80,7 @@ def run_static_test(child: SyntheticChild, items_per_module: int, item_pool, mod
                 module_stats=session.modules[module_id],
                 module_id=module_id,
                 item_difficulty=item.difficulty,
+                item_discrimination=item.discrimination,
                 is_correct=is_correct,
                 total_time_seconds=session.total_time_seconds + rt_seconds
             )

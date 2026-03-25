@@ -54,6 +54,7 @@ def update_theta_posterior_for_item(
     theta_posterior: List[float],
     module_id: str,
     item_difficulty: float,
+    item_discrimination: float,
     is_correct: bool,
     total_time_seconds: float = 0.0,
 ) -> List[float]:
@@ -71,7 +72,7 @@ def update_theta_posterior_for_item(
     -------
     new_theta_posterior : updated, normalised posterior
     """
-    a = config.ITEM_DISCRIMINATION.get(module_id, 1.0)
+    a = item_discrimination
     c = config.ITEM_GUESSING.get(module_id, 0.0)
     d_base = config.ITEM_SLIPPING.get(module_id, 0.0)
     from . import rt_fatigue
@@ -177,6 +178,7 @@ def update_module_stats_for_item(
     module_stats: ModuleStats,
     module_id: str,
     item_difficulty: float,
+    item_discrimination: float,
     is_correct: bool,
     total_time_seconds: float = 0.0,
 ) -> None:
@@ -194,6 +196,7 @@ def update_module_stats_for_item(
         module_stats.theta_posterior,
         module_id=module_id,
         item_difficulty=item_difficulty,
+        item_discrimination=item_discrimination,
         is_correct=is_correct,
         total_time_seconds=total_time_seconds,
     )

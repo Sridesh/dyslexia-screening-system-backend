@@ -23,6 +23,7 @@ def build_item_pool(items: List[Item]) -> Dict[int, selection.CandidateItem]:
             id=it.id,
             module_id=it.module, # distinct from user prompt 'module_id' vs 'module'
             difficulty=it.difficulty,
+            discrimination=it.discrimination,
             max_time_seconds=it.max_time_s or 60.0,
         )
     return pool

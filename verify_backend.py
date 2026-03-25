@@ -14,12 +14,12 @@ def test_engine():
     }
     
     item_pool = {
-        1: selection.CandidateItem(1, "phonemic_awareness", -1.0, 5.0),
-        2: selection.CandidateItem(2, "phonemic_awareness", 1.0, 5.0),
-        3: selection.CandidateItem(3, "ran", -1.0, 5.0),
-        4: selection.CandidateItem(4, "ran", 1.0, 5.0),
-        5: selection.CandidateItem(5, "object_recognition", -1.0, 5.0),
-        6: selection.CandidateItem(6, "object_recognition", 1.0, 5.0),
+        1: selection.CandidateItem(1, "phonemic_awareness", -1.0, 1.0, 5.0),
+        2: selection.CandidateItem(2, "phonemic_awareness", 1.0, 1.0, 5.0),
+        3: selection.CandidateItem(3, "ran", -1.0, 1.0, 5.0),
+        4: selection.CandidateItem(4, "ran", 1.0, 1.0, 5.0),
+        5: selection.CandidateItem(5, "object_recognition", -1.0, 1.0, 5.0),
+        6: selection.CandidateItem(6, "object_recognition", 1.0, 1.0, 5.0),
     }
 
     res = orchestration_engine.start_new_test(1, module_item_ids, item_pool, start_time)

@@ -54,6 +54,7 @@ def make_synthetic_item_bank() -> Tuple[Dict[int, selection.CandidateItem], Dict
                 id=item_id,
                 module_id=module_id,
                 difficulty=float(b),
+                discrimination=random.uniform(0.8, 1.6),
                 max_time_seconds=random.uniform(3.0, 7.0),
             )
             item_id += 1
@@ -67,7 +68,7 @@ def make_synthetic_item_bank() -> Tuple[Dict[int, selection.CandidateItem], Dict
 def simulate_response(child: SyntheticChild, item: selection.CandidateItem) -> Tuple[bool, float]:
     """Simulates a 4PL-based response with fatigue and RT variance."""
     theta = child.theta_by_module.get(item.module_id, 0.0)
-    a = config.ITEM_DISCRIMINATION.get(item.module_id, 1.0)
+    a = item.discrimination
     c = config.ITEM_GUESSING.get(item.module_id, 0.0)
     d = config.ITEM_SLIPPING.get(item.module_id, 0.0)
     b = item.difficulty

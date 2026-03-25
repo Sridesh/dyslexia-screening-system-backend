@@ -8,6 +8,7 @@ class Item(Base):
     id = Column(Integer, primary_key=True, index=True)
     module = Column(String, index=True, nullable=False)     # e.g. "RAN"
     difficulty = Column(Float, nullable=False)
+    discrimination = Column(Float, nullable=False, default=1.0)
     max_time_s = Column(Float, nullable=True)
     prompt_type = Column(String, nullable=True) # e.g. "audio_text", "image"
     prompt_text = Column(Text, nullable=True)

@@ -10,8 +10,8 @@ from sqlalchemy.orm import sessionmaker
 sys.path.append(os.getcwd())
 
 from app.main import app
-from app.db.database import Base, get_db
-from app.api.deps import deps
+from app.db.database import Base
+from app.deps import deps
 from app import models
 
 # Setup in-memory DB for testing
@@ -50,6 +50,7 @@ def test_adaptive_flow():
                 item = models.item.Item(
                     module=mod,
                     difficulty=0.5 + (i * 0.1),
+                    discrimination=1.0,
                     max_time_s=60.0,
                     prompt_text=f"Item {i} for {mod}",
                     is_active=True,
@@ -65,31 +66,26 @@ def test_adaptive_flow():
     child_id = resp.json()["id"]
     print(f"Child created: {child_id}")
 
-    # 3. Create a Test
-    print("Creating test...")
-    resp = client.post("/api/v1/tests/", json={"child_id": child_id, "device_id": "TEST_DEVICE"})
-    assert resp.status_code == 201
-    test_id = resp.json()["id"]
-    print(f"Test created: {test_id}")
-
-    # 4. Start Adaptive Test
+    # 3. Start Adaptive Test (which creates it too)
     print("Starting adaptive test...")
-    resp = client.post(f"/api/v1/adaptive/{test_id}/start")
+    resp = client.post("/api/v1/adaptive/start", json={"child_id": child_id, "device_id": "TEST_DEVICE"})
     if resp.status_code != 200:
         print(f"Start failed: {resp.text}")
         sys.exit(1)
     
     start_data = resp.json()
-    assert "next_item" in start_data
-    first_item = start_data["next_item"]
-    print(f"First item received: {first_item['id']} ({first_item['module']})")
+    test_id = start_data["test_id"]
+    print(f"Test created and started: {test_id}")
+    assert "first_item" in start_data
+    first_item = start_data["first_item"]
+    print(f"First item received: {first_item['id']} ({first_item['module_id']})")
 
     # 5. Submit Response
     print("Submitting response...")
     log_data = {
         "test_id": test_id,
         "item_id": first_item["id"],
-        "module": first_item["module"],
+        "module": first_item["module_id"],
         "response": "correct",
         "is_correct": True,
         "response_time_s": 2.5,
@@ -107,7 +103,7 @@ def test_adaptive_flow():
         print("Results:", submit_data["results"])
     else:
         next_item = submit_data["next_item"]
-        print(f"Next item received: {next_item['id']} ({next_item['module']})")
+        print(f"Next item received: {next_item['id']} ({next_item['module_id']})")
         assert next_item["id"] != first_item["id"]
 
     print("Adaptive flow verified successfully!")
