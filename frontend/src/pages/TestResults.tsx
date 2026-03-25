@@ -17,6 +17,10 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   ArrowBack as BackIcon,
@@ -28,10 +32,13 @@ import {
   Speed as SpeedIcon,
   Psychology as BrainIcon,
   BatteryAlert as FatigueIcon,
+  AutoGraph as PlanIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router";
-import { getTest, getModuleSummaries, getXai, getTestItemLogs } from "../api";
-import type { Test, ModuleSummary, TestXAI, TestItemLog } from "../types";
+import { getTest, getModuleSummaries, getXai, getTestItemLogs, getInterventionPlan } from "../api";
+import type { Test, ModuleSummary, TestXAI, TestItemLog, InterventionPlan } from "../types";
+import ReactMarkdown from "react-markdown";
 import RiskChip from "../components/RiskChip";
 import ModuleBarChart from "../components/ModuleBarChart";
 
@@ -158,6 +165,84 @@ const RiskBanner: React.FC<{ test: Test; xai?: TestXAI | null; globalNotes?: str
   );
 };
 
+const InterventionDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  plan: InterventionPlan | null;
+  loading: boolean;
+}> = ({ open, onClose, plan, loading }) => {
+  const handlePrint = () => {
+    const printContent = document.getElementById("intervention-report-content");
+    const originalContent = document.body.innerHTML;
+    if (printContent) {
+      document.body.innerHTML = `
+        <html>
+          <head>
+            <title>Intervention Report</title>
+            <style>
+              body { font-family: sans-serif; padding: 40px; }
+              h1, h2, h3 { color: #1976d2; }
+              p { line-height: 1.6; }
+              @media print { .no-print { display: none; } }
+            </style>
+          </head>
+          <body>${printContent.innerHTML}</body>
+        </html>
+      `;
+      window.print();
+      document.body.innerHTML = originalContent;
+      window.location.reload(); // Reload to restore React state
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PlanIcon color="primary" />
+          Personalized Intervention Plan
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          Generated via {plan?.intervention_plan.source ?? "RAG Agent"}
+        </Typography>
+      </DialogTitle>
+      <DialogContent dividers>
+        {loading ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 8, gap: 2 }}>
+            <CircularProgress />
+            <Typography color="text.secondary">Clinical Agent is analyzing guidelines...</Typography>
+          </Box>
+        ) : plan ? (
+          <Box id="intervention-report-content" sx={{ p: 2 }}>
+             <ReactMarkdown 
+                components={{
+                  h3: ({node, ...props}: any) => <Typography variant="h5" fontWeight={700} color="primary" sx={{ mt: 3, mb: 1 }} {...props} />,
+                  p: ({node, ...props}: any) => <Typography variant="body1" sx={{ mb: 2, lineHeight: 1.7 }} {...props} />,
+                  li: ({node, ...props}: any) => <Typography component="li" variant="body1" sx={{ mb: 1, ml: 2 }} {...props} />,
+                }}
+             >
+                {plan.intervention_plan.plan_markdown}
+             </ReactMarkdown>
+          </Box>
+        ) : (
+          <Alert severity="error">Failed to generate plan. Please try again.</Alert>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ p: 2, gap: 1 }}>
+        <Button onClick={onClose} color="inherit">Close</Button>
+        <Button 
+          startIcon={<DownloadIcon />} 
+          variant="contained" 
+          onClick={handlePrint}
+          disabled={loading || !plan}
+        >
+          Save as PDF
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
 const TestResults: React.FC = () => {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
@@ -168,6 +253,25 @@ const TestResults: React.FC = () => {
   const [itemLogs, setItemLogs] = useState<TestItemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Intervention state
+  const [showIntervention, setShowIntervention] = useState(false);
+  const [interventionPlan, setInterventionPlan] = useState<InterventionPlan | null>(null);
+  const [interventionLoading, setInterventionLoading] = useState(false);
+
+  const handleGeneratePlan = async () => {
+    if (!testId) return;
+    setShowIntervention(true);
+    setInterventionLoading(true);
+    try {
+      const plan = await getInterventionPlan(Number(testId));
+      setInterventionPlan(plan);
+    } catch {
+      console.error("Failed to fetch intervention plan");
+    } finally {
+      setInterventionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!testId) return;
@@ -250,6 +354,33 @@ const TestResults: React.FC = () => {
 
       {/* Risk banner */}
       <RiskBanner test={test} xai={xaiData} globalNotes={globalNotes} />
+
+      {/* Intervention Action */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
+        <Button 
+          variant="contained" 
+          size="large" 
+          startIcon={<PlanIcon />} 
+          onClick={handleGeneratePlan}
+          sx={{ 
+            borderRadius: 3, 
+            px: 4, 
+            py: 1.5, 
+            boxShadow: 3,
+            background: "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)"
+          }}
+        >
+          Generate Personalized Intervention Plan
+        </Button>
+      </Box>
+
+      {/* Intervention Dialog */}
+      <InterventionDialog 
+        open={showIntervention} 
+        onClose={() => setShowIntervention(false)} 
+        plan={interventionPlan}
+        loading={interventionLoading}
+      />
 
       {/* Session summary cards */}
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
@@ -388,7 +519,7 @@ const TestResults: React.FC = () => {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Grid container spacing={4}>
-              <Grid item xs={12} md={7}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
                   <InfoIcon color="primary" />
                   <Typography variant="h6">Clinical Explanation</Typography>
@@ -418,7 +549,7 @@ const TestResults: React.FC = () => {
 
               {/* Feature Drivers section */}
               {featureContributions && (
-                <Grid item xs={12} md={5}>
+                <Grid size={{ xs: 12, md: 5 }}>
                   <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 3, height: "100%" }}>
                     <Typography variant="subtitle2" fontWeight={800} color="text.secondary" gutterBottom sx={{ textTransform: "uppercase", letterSpacing: 1 }}>
                       Key Feature Drivers
@@ -440,8 +571,15 @@ const TestResults: React.FC = () => {
                                 label={data.weight} 
                                 size="small" 
                                 color={weightColor} 
-                                variant="soft"
-                                sx={{ fontSize: "0.65rem", height: 20, fontWeight: 700 }} 
+                                variant="outlined"
+                                sx={{ 
+                                  fontSize: "0.65rem", 
+                                  height: 20, 
+                                  fontWeight: 700,
+                                  bgcolor: weightColor === 'error' ? 'rgba(211, 47, 47, 0.1)' : 
+                                           weightColor === 'warning' ? 'rgba(237, 108, 2, 0.1)' : 
+                                           'rgba(2, 136, 209, 0.1)'
+                                }} 
                               />
                             </Box>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

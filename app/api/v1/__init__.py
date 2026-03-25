@@ -11,6 +11,9 @@ api_router.include_router(test_module_sum.router, prefix="/module-summaries", ta
 api_router.include_router(test_features.router, prefix="/features", tags=["test-features"])
 api_router.include_router(test_xai.router, prefix="/xai", tags=["test-xai"])
 
+from app.api.v1 import intervention
+api_router.include_router(intervention.router, prefix="/intervention", tags=["intervention"])
+
 # Lazy import to avoid circular dependencies if any, though standard import is fine
 from app.api.v1 import adaptive
 api_router.include_router(adaptive.router, prefix="/adaptive", tags=["adaptive"])
